@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+.reference/
+.qa/
+*.log
+# Original media remain untouched locally; portable copies live in public/media.
+/*.mp3
+/*.wav
+/*.mp4
+/SFX/

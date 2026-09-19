@@ -1,0 +1,19 @@
+{
+  "name": "portfolio4music",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "media": "python3 scripts/prepare_media.py",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@phosphor-icons/core": "^2.1.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}
