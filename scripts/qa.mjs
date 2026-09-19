@@ -81,10 +81,14 @@ async function main() {
   if (!CHROME) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
   mkdirSync(QA_DIR, { recursive: true });
 
-  console.log('· starting Vite dev server');
-  const vite = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
-    cwd: ROOT, stdio: 'ignore',
-  });
+  const preview = process.env.QA_PREVIEW === '1';
+  if (preview) {
+    console.log('· building production bundle');
+    await run('npx', ['vite', 'build']);
+  }
+  console.log(preview ? '· starting Vite preview server' : '· starting Vite dev server');
+  const viteArgs = ['vite', preview ? 'preview' : 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'];
+  const vite = spawn('npx', viteArgs, { cwd: ROOT, stdio: 'ignore' });
   await waitForHttp(BASE, 40000);
 
   console.log('· starting headless Chrome');
@@ -309,6 +313,14 @@ const qaHook = `
   window.addEventListener('unhandledrejection', event => stats.errors.push(String(event.reason)));
 })();
 `;
+
+function run(command, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { cwd: ROOT, stdio: 'ignore' });
+    child.on('exit', code => (code === 0 ? resolve() : reject(new Error(`${command} ${args.join(' ')} exited with ${code}`))));
+    child.on('error', reject);
+  });
+}
 
 async function waitForHttp(url, timeout) {
   const start = Date.now();
