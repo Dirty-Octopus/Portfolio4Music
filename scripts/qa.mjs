@@ -13,7 +13,8 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const QA_DIR = join(ROOT, '.qa');
 const PORT = Number(process.env.QA_PORT || 5199);
 const DEBUG_PORT = Number(process.env.QA_DEBUG_PORT || 9333);
-const BASE = `http://127.0.0.1:${PORT}/`;
+const BASE = process.env.QA_URL || `http://127.0.0.1:${PORT}/`;
+const REMOTE = Boolean(process.env.QA_URL);
 const CHROME = process.env.CHROME || [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
@@ -81,14 +82,19 @@ async function main() {
   if (!CHROME) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
   mkdirSync(QA_DIR, { recursive: true });
 
-  const preview = process.env.QA_PREVIEW === '1';
-  if (preview) {
-    console.log('· building production bundle');
-    await run('npx', ['vite', 'build']);
+  let vite = null;
+  if (REMOTE) {
+    console.log(`· checking remote site ${BASE}`);
+  } else {
+    const preview = process.env.QA_PREVIEW === '1';
+    if (preview) {
+      console.log('· building production bundle');
+      await run('npx', ['vite', 'build']);
+    }
+    console.log(preview ? '· starting Vite preview server' : '· starting Vite dev server');
+    const viteArgs = ['vite', preview ? 'preview' : 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'];
+    vite = spawn('npx', viteArgs, { cwd: ROOT, stdio: 'ignore' });
   }
-  console.log(preview ? '· starting Vite preview server' : '· starting Vite dev server');
-  const viteArgs = ['vite', preview ? 'preview' : 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'];
-  const vite = spawn('npx', viteArgs, { cwd: ROOT, stdio: 'ignore' });
   await waitForHttp(BASE, 40000);
 
   console.log('· starting headless Chrome');
@@ -281,7 +287,7 @@ async function main() {
 
   cdp.close();
   chrome.kill('SIGKILL');
-  vite.kill('SIGKILL');
+  if (vite) vite.kill('SIGKILL');
   rmSync(profile, { recursive: true, force: true });
 
   const failed = results.filter(r => !r.ok);
