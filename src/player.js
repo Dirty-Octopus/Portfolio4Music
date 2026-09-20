@@ -256,7 +256,6 @@ export class PlaybackEngine {
           bootupcrt: 0.32,
           flicker: 0.16,
           clack: 0.16,
-          rotaryclack: 0.16,
           round: 0.24,
         }[name] ?? 0.19;
       const attack = Math.min(0.003, duration * 0.1);

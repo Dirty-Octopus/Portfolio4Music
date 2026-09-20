@@ -512,14 +512,14 @@ body.boot-visible .scroll-ruler {
 .rotary-ticks i {
   position: absolute;
   top: 0;
-  left: calc(50% - 1px);
-  width: 2px;
-  height: 10px;
+  left: calc(50% - 1.5px);
+  width: 3px;
+  height: 13px;
   background: #8ba1a3;
-  transform-origin: 1px 114px;
+  transform-origin: 1.5px 114px;
 }
 .rotary-ticks i:nth-child(3n + 1) {
-  height: 17px;
+  height: 20px;
   background: #c1c7b5;
 }
 .rotary-crosshair {

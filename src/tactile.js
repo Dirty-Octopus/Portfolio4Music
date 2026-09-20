@@ -2,7 +2,9 @@ import { clamp } from "./player.js";
 import { initFader } from "./fader.js";
 
 const ease = (t) => t * t * (3 - 2 * t);
-const detent = 15;
+const detentCount = 12;
+const detent = 360 / detentCount;
+const detentThreshold = detent * 0.62;
 const wrap = (degrees) => ((degrees % 360) + 360) % 360;
 
 export function initTactileExperience({ engine, motionAllowed }) {
@@ -170,7 +172,7 @@ function initRotary(engine, motionAllowed) {
   const canvas = document.querySelector("#rotary-particles");
   const ctx = canvas.getContext("2d");
   const ticks = document.querySelector(".rotary-ticks");
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < detentCount; i++) {
     const tick = document.createElement("i");
     tick.style.transform = `rotate(${i * detent}deg)`;
     ticks.append(tick);
@@ -223,10 +225,10 @@ function initRotary(engine, motionAllowed) {
   function feedback(step) {
     const direction = Math.sign(step - sounded);
     for (let cursor = sounded; cursor !== step; cursor += direction) {
-      engine.sfx("rotaryclack");
+      engine.sfx("clack");
       burst();
       revolution += direction;
-      if (Math.abs(revolution) >= 24) {
+      if (Math.abs(revolution) >= detentCount) {
         revolution = 0;
         engine.sfx("round");
         burst(true);
@@ -262,7 +264,7 @@ function initRotary(engine, motionAllowed) {
     const dt = Math.min((now - (previousTime || now - 16)) / 1000, 0.032);
     previousTime = now;
     if (motionAllowed()) {
-      velocity += ((target - angle) * 240 - velocity * 28) * dt;
+      velocity += ((target - angle) * 480 - velocity * 36) * dt;
       angle += velocity * dt;
     } else {
       angle = target;
@@ -334,7 +336,9 @@ function initRotary(engine, motionAllowed) {
     const delta = ((next - lastPointerAngle + 540) % 360) - 180;
     inputAngle += delta;
     lastPointerAngle = next;
-    target = Math.round(inputAngle / detent) * detent;
+    // Hold each notch past the midpoint so small reversals cannot chatter.
+    while (inputAngle - target > detentThreshold) target += detent;
+    while (inputAngle - target < -detentThreshold) target -= detent;
     wake();
   });
   function release() {

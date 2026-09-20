@@ -623,10 +623,10 @@ test("fader audio survives UI clacks and stops with SFX off", async () => {
   const { engine } = makeEngine();
   await engine.unlock();
   engine.buffers.neuraasliderto = { duration: 8 / 3 };
-  engine.buffers.rotaryclack = { duration: 1 / 6 };
+  engine.buffers.clack = { duration: 0.15932 };
   engine.updateSliderSound(0, 1, 0.375, 0.08, 0.2);
   const voice = engine.sliderVoice;
-  await engine.sfx("rotaryclack");
+  await engine.sfx("clack");
   assert.equal(voice.source.stopped, 0);
   engine.sfxEnabled = false;
   engine.stopSfx();

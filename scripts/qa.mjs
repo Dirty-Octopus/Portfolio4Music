@@ -504,7 +504,7 @@ async function main() {
   );
   await shot('07-audio-view');
   await click('[data-nav="video"]');
-  await sleepMs(220);
+  await waitFor(`document.querySelector('.workspace').getAnimations()[0]?.currentTime > 100`);
   const retarget = await evaluate(`(() => {
     const workspace = document.querySelector('.workspace');
     const animation = workspace.getAnimations()[0];
@@ -556,16 +556,30 @@ async function main() {
   await sleepMs(350);
   check('one full rotary turn triggers one round accent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length === ${roundsBefore + 1}`));
   check('rotary emits actual canvas particles', await evaluate(`(() => { const c = document.querySelector('#rotary-particles'); const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; return d.some((v,i) => i % 4 === 3 && v > 0); })()`));
-  check('rotary uses its dedicated clack without the scroll sound', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length >= ${rotaryBefore + 24} && window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length === ${scrollBeforeRotary}`));
+  check('rotary uses the original clack once per coarse detent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length === ${scrollBeforeRotary + 12} && window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length === ${rotaryBefore}`));
+  check('rotary displays twelve detents', await evaluate(`document.querySelectorAll('.rotary-ticks i').length === 12`));
   await shot('08-playground');
   await evaluate(`document.querySelector('#rotary-knob').focus()`);
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 });
   const rotaryAtStart = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
   await sleepMs(70);
   const rotaryDuring = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
-  check('rotary eases through intermediate angles', rotaryDuring > rotaryAtStart && rotaryDuring < 15);
+  check('rotary eases through intermediate angles', rotaryDuring > rotaryAtStart && rotaryDuring < 30);
   await sleepMs(550);
-  check('rotary supports keyboard detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 15`));
+  check('rotary supports keyboard detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`));
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx + 55, y: cy, button: 'left', buttons: 1, clickCount: 1 });
+  const dragRotary = async (degrees) => {
+    const radians = degrees * Math.PI / 180;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx + Math.cos(radians) * 55, y: cy + Math.sin(radians) * 55, button: 'left', buttons: 1 });
+    await sleepMs(450);
+  };
+  await dragRotary(17);
+  check('rotary holds its notch until the resistance threshold', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`));
+  await dragRotary(20);
+  check('rotary snaps into the next notch after the threshold', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`));
+  await dragRotary(14);
+  check('small reversals do not chatter between rotary detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`));
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx + 55, y: cy, button: 'left', buttons: 0 });
   console.log('· directional fader and projection');
   check('fader occupies its own module below the rotary', await evaluate(`document.querySelector('.fader-module').getBoundingClientRect().top > document.querySelector('.rotary-stage').getBoundingClientRect().bottom + 20`));
   const fader = await boxOf('.fader-travel');
