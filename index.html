@@ -11,13 +11,38 @@
     <title>OCTOPUS / Music & Sound Design</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   </head>
-  <body class="boot-visible" data-treatment="duotone">
+  <body class="boot-visible dock-collapsed" data-treatment="duotone">
     <svg
       class="filter-definitions"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <defs>
+        <filter
+          id="crt-lens"
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          color-interpolation-filters="sRGB"
+        >
+          <feFlood flood-color="rgb(128,128,0)" result="neutral" />
+          <feImage id="crt-map" preserveAspectRatio="none" result="lens-map" />
+          <feComposite
+            in="lens-map"
+            in2="neutral"
+            operator="over"
+            result="map"
+          />
+          <feDisplacementMap
+            id="crt-displacement"
+            in="SourceGraphic"
+            in2="map"
+            xChannelSelector="R"
+            yChannelSelector="G"
+            scale="0"
+          />
+        </filter>
         <filter id="logo-cutout" color-interpolation-filters="sRGB">
           <feColorMatrix
             type="matrix"
@@ -52,40 +77,62 @@
       aria-modal="true"
       aria-label="进入声音作品集"
     >
-      <div class="boot-grid"></div>
-      <div class="crt-power" aria-hidden="true"><i></i></div>
-      <div class="boot-circuit" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="boot-rule">
-        <span>DIRTY OCTOPUS</span><span>INTERACTIVE AUDIO PORTFOLIO</span>
-      </div>
-      <div class="boot-center">
-        <div class="boot-symbol">
-          <img src="./art/dirty-octopus-logo.jpg" alt="Dirty Octopus" />
+      <div class="boot-face">
+        <div class="boot-grid"></div>
+        <div class="crt-power" aria-hidden="true"><i></i></div>
+        <div class="boot-circuit" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="boot-rule">
+          <span>DIRTY OCTOPUS</span><span>INTERACTIVE AUDIO PORTFOLIO</span>
         </div>
-        <p class="micro">DIRTY OCTOPUS / AUDIO EXPLORATIONS</p>
-        <h1>DIRTY OCTOPUS<br /><b>SONIC ARCHIVE.</b></h1>
-        <p class="boot-note">音乐创作 / 影视配乐 / 声音设计</p>
-        <div class="boot-sequence" aria-hidden="true">
-          <span>01. IDENTITY</span><span>02. SOUND</span
-          ><span>03. EXPERIENCE</span>
-        </div>
-        <div
-          class="language-entry"
-          role="group"
-          aria-label="选择语言 / Choose language"
-        >
-          <button id="enter" class="enter-button" data-enter="zh">
-            中文版 <span>进入作品集 <i data-icon="arrow-up-right"></i></span>
+        <div class="boot-center">
+          <div class="boot-symbol">
+            <img src="./art/dirty-octopus-logo.jpg" alt="Dirty Octopus" />
+          </div>
+          <p class="micro">DIRTY OCTOPUS / AUDIO EXPLORATIONS</p>
+          <h1>DIRTY OCTOPUS<br /><b>SONIC ARCHIVE.</b></h1>
+          <p class="boot-note">音乐创作 / 影视配乐 / 声音设计</p>
+          <div class="boot-sequence" aria-hidden="true">
+            <span>01. IDENTITY</span><span>02. SOUND</span
+            ><span>03. EXPERIENCE</span>
+          </div>
+          <div
+            class="language-entry"
+            role="group"
+            aria-label="选择语言 / Choose language"
+          >
+            <button id="enter" class="enter-button" data-enter="zh">
+              中文版 <span>进入作品集 <i data-icon="arrow-up-right"></i></span>
+            </button>
+            <button id="enter-en" class="enter-button" data-enter="en">
+              ENGLISH
+              <span>ENTER ARCHIVE <i data-icon="arrow-up-right"></i></span>
+            </button>
+          </div>
+          <div class="boot-loader" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div
+            class="boot-progress"
+            role="progressbar"
+            aria-label="音频加载 / Audio loading"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <i></i>
+          </div>
+          <div class="boot-telemetry">
+            <p id="boot-status" class="micro" role="status">
+              正在加载声音 / LOADING AUDIO
+            </p>
+            <output id="boot-percent">00%</output>
+          </div>
+          <button id="boot-retry" class="enter-button" hidden>
+            重新加载 / RETRY
           </button>
-          <button id="enter-en" class="enter-button" data-enter="en">
-            ENGLISH
-            <span>ENTER ARCHIVE <i data-icon="arrow-up-right"></i></span>
-          </button>
         </div>
-        <div class="boot-progress" hidden><i></i></div>
-        <p id="boot-status" class="micro">选择语言 / SELECT LANGUAGE</p>
+        <span class="boot-foot micro">SOUND IS A PLACE. STEP INSIDE.</span>
       </div>
-      <span class="boot-foot micro">SOUND IS A PLACE. STEP INSIDE.</span>
     </div>
     <div id="site" inert>
       <div class="outer-label">
@@ -389,6 +436,17 @@
                       >S</span
                     >
                   </div>
+                  <div
+                    class="crank-charge"
+                    role="meter"
+                    aria-label="摇把蓄能"
+                    aria-valuemin="0"
+                    aria-valuemax="10"
+                    aria-valuenow="0"
+                  >
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                    ><i></i><i></i>
+                  </div>
                   <span class="rotary-caption" aria-hidden="true"
                     >SOUND / IN MOTION</span
                   >
@@ -578,15 +636,15 @@
           </button>
         </footer>
       </main>
-      <section class="transport" aria-label="音乐播放器">
+      <section class="transport collapsed" aria-label="音乐播放器">
         <button
           id="dock-toggle"
           class="icon-button dock-toggle"
-          aria-label="收起播放器"
-          aria-expanded="true"
-          title="收起播放器"
+          aria-label="展开播放器"
+          aria-expanded="false"
+          title="展开播放器"
         >
-          <span data-icon="caret-down"></span>
+          <span data-icon="caret-up"></span>
         </button>
         <button id="dock-play" class="icon-button dock-play" aria-label="播放">
           <span data-icon="play"></span>
@@ -683,83 +741,96 @@
         <span>CRAFTED FOR LISTENING.</span><span>HEADPHONES RECOMMENDED</span>
       </div>
     </div>
+    <div class="system-backdrop" hidden></div>
     <dialog
       id="system-dialog"
       class="system-dialog"
       aria-labelledby="system-title"
+      aria-modal="true"
     >
-      <div class="system-titlebar">
-        <h2 id="system-title">INTERFACE.CONTROL</h2>
-        <button id="system-close" aria-label="关闭系统控制台">×</button>
+      <div class="system-emblem" aria-hidden="true">
+        <span data-icon="sliders-horizontal"></span>
       </div>
-      <p class="system-description">自定义这一次的声音与视觉体验。</p>
-      <div class="system-section">
-        <h3>DISPLAY PROCESSING <span>画面处理</span></h3>
-        <div class="system-treatments">
-          <button data-treatment="mono" aria-pressed="false">
-            01 / GRAPHITE</button
-          ><button data-treatment="duotone" aria-pressed="true">
-            02 / OXIDE</button
-          ><button data-treatment="halftone" aria-pressed="false">
-            03 / PHOSPHOR
+      <div class="system-content">
+        <div class="system-titlebar">
+          <h2 id="system-title">INTERFACE.CONTROL</h2>
+          <button id="system-close" aria-label="关闭系统控制台">×</button>
+        </div>
+        <p class="system-description">自定义这一次的声音与视觉体验。</p>
+        <div class="system-section">
+          <h3>DISPLAY PROCESSING <span>画面处理</span></h3>
+          <div class="system-treatments">
+            <button data-treatment="mono" aria-pressed="false">
+              01 / GRAPHITE</button
+            ><button data-treatment="duotone" aria-pressed="true">
+              02 / OXIDE</button
+            ><button data-treatment="halftone" aria-pressed="false">
+              03 / PHOSPHOR
+            </button>
+          </div>
+          <p>只处理界面图像，视频保留原始色彩。</p>
+        </div>
+        <div class="system-switch-row">
+          <span>INTERFACE MOTION<small>界面动画</small></span
+          ><button id="motion-toggle" role="switch" aria-checked="true">
+            ON
           </button>
         </div>
-        <p>只处理界面图像，视频保留原始色彩。</p>
-      </div>
-      <div class="system-switch-row">
-        <span>INTERFACE MOTION<small>界面动画</small></span
-        ><button id="motion-toggle" role="switch" aria-checked="true">
-          ON
-        </button>
-      </div>
-      <div class="system-switch-row">
-        <span>INTERFACE SOUND<small>交互音效</small></span
-        ><button id="system-sfx" role="switch" aria-checked="true">ON</button>
-      </div>
-      <div class="system-switch-row">
-        <span data-i18n="bgm">背景音乐</span>
-        <button id="system-bgm" role="switch" aria-checked="true">ON</button>
-      </div>
-      <div class="system-section">
-        <h3>
-          <span data-i18n="softness">屏幕柔化</span
-          ><output id="softness-value">0.35</output>
-        </h3>
-        <input
-          id="softness"
-          type="range"
-          min="0"
-          max="0.8"
-          step="0.05"
-          value="0.35"
-          aria-label="屏幕柔化"
-        />
-      </div>
-      <div class="system-section">
-        <h3 data-i18n="language">语言</h3>
-        <div class="system-treatments" role="group" aria-label="Language">
-          <button data-language="zh" aria-pressed="true">中文</button>
-          <button data-language="en" aria-pressed="false">ENGLISH</button>
+        <div class="system-switch-row">
+          <span>INTERFACE SOUND<small>交互音效</small></span
+          ><button id="system-sfx" role="switch" aria-checked="true">ON</button>
         </div>
-      </div>
-      <div class="system-section">
-        <h3>TRANSPORT STATE <span>播放状态</span></h3>
-        <div class="system-state" id="system-playback-state">IDLE / 待机</div>
-      </div>
-      <div class="system-section">
-        <h3>KEYBOARD <span>快捷操作</span></h3>
-        <div class="shortcut"><kbd>SPACE</kbd><span>播放 / 暂停</span></div>
-        <div class="shortcut"><kbd>/</kbd><span>搜索作品</span></div>
-        <div class="shortcut">
-          <kbd>← →</kbd><span>聚焦进度条后精确定位</span>
+        <div class="system-switch-row">
+          <span data-i18n="bgm">背景音乐</span>
+          <button id="system-bgm" role="switch" aria-checked="true">ON</button>
         </div>
-        <div class="shortcut">
-          <kbd>ESC</kbd><span>关闭控制台 / 清除搜索</span>
+        <div class="system-switch-row experimental-row">
+          <span data-i18n="crtLens">视角畸变 · 实验性</span>
+          <button id="crt-toggle" role="switch" aria-checked="false">
+            OFF
+          </button>
         </div>
-      </div>
-      <div class="system-log">
-        <span>LAST ACTION</span>
-        <p id="last-action">EXPERIENCE INITIALIZED</p>
+        <div class="system-section">
+          <h3>
+            <span data-i18n="softness">屏幕柔化</span
+            ><output id="softness-value">0.35</output>
+          </h3>
+          <input
+            id="softness"
+            type="range"
+            min="0"
+            max="0.8"
+            step="0.05"
+            value="0.35"
+            aria-label="屏幕柔化"
+          />
+        </div>
+        <div class="system-section">
+          <h3 data-i18n="language">语言</h3>
+          <div class="system-treatments" role="group" aria-label="Language">
+            <button data-language="zh" aria-pressed="true">中文</button>
+            <button data-language="en" aria-pressed="false">ENGLISH</button>
+          </div>
+        </div>
+        <div class="system-section">
+          <h3>TRANSPORT STATE <span>播放状态</span></h3>
+          <div class="system-state" id="system-playback-state">IDLE / 待机</div>
+        </div>
+        <div class="system-section">
+          <h3>KEYBOARD <span>快捷操作</span></h3>
+          <div class="shortcut"><kbd>SPACE</kbd><span>播放 / 暂停</span></div>
+          <div class="shortcut"><kbd>/</kbd><span>搜索作品</span></div>
+          <div class="shortcut">
+            <kbd>← →</kbd><span>聚焦进度条后精确定位</span>
+          </div>
+          <div class="shortcut">
+            <kbd>ESC</kbd><span>关闭控制台 / 清除搜索</span>
+          </div>
+        </div>
+        <div class="system-log">
+          <span>LAST ACTION</span>
+          <p id="last-action">EXPERIENCE INITIALIZED</p>
+        </div>
       </div>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>

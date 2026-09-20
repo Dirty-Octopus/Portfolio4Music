@@ -6,6 +6,9 @@ import "./forum.css";
 import "./choreography.css";
 import "./experience.css";
 import "./refinements.css";
+import "./console.css";
+import { AudioAssets, openBootValve } from "./loading.js";
+import { initCrtLens } from "./crt.js";
 import { initTactileExperience } from "./tactile.js";
 import { t, trackTitle, setLanguage } from "./i18n.js";
 import {
@@ -51,7 +54,8 @@ const icons = {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const base = import.meta.env.BASE_URL;
-const asset = (path) => `${base}${path}`;
+let audioAssets;
+const asset = (path) => audioAssets?.url(path) || `${base}${path}`;
 const escapeHTML = (text) =>
   String(text).replace(
     /[&<>"']/g,
@@ -115,31 +119,30 @@ const engine = new PlaybackEngine({
     );
   },
 });
-const cueReady = engine.preloadSfx({
-  bootupcrt: asset("media/bootupcrt.wav"),
-  flicker: asset("media/flicker.wav"),
-});
-const sfxReady = engine.preloadSfx(
-  Object.fromEntries(
-    Object.entries({
-      ...manifest.sfx,
-      pad: "media/pad.wav",
-    }).map(([key, path]) => [key, asset(path)]),
-  ),
+audioAssets = new AudioAssets(engine, (path) => `${base}${path}`);
+const soundPaths = Object.fromEntries(
+  [
+    "pad",
+    "bootupcrt",
+    "flicker",
+    "preselect",
+    "clack",
+    "lowerclack",
+    "clickeffect",
+    "clickevent",
+    "suprise",
+    "neuraasliderto",
+    "neuraasliderfrom",
+    "round",
+    "scanner",
+    "notification",
+  ].map((name) => [name, `media/${name}.wav`]),
 );
-engine.preloadSfx({
-  preselect: asset("media/preselect.wav"),
-  clack: asset("media/clack.wav"),
-  lowerclack: asset("media/lowerclack.wav"),
-  clickevent: asset("media/clickevent.wav"),
-  suprise: asset("media/suprise.wav"),
-  neuraasliderto: asset("media/neuraasliderto.wav"),
-  neuraasliderfrom: asset("media/neuraasliderfrom.wav"),
-  round: asset("media/round.wav"),
-});
+let assetsReady,
+  opening = false,
+  entryTime = 0;
 video.src = asset(manifest.videos[0].src);
 video.poster = asset(manifest.videos[0].poster);
-audio.src = asset(current.src);
 $("#video-duration").textContent = formatTime(manifest.videos[0].duration);
 $("#year").textContent = new Date().getFullYear();
 function renderFilters() {
@@ -258,13 +261,61 @@ function updatePlayback() {
   });
 }
 
+async function startAudioLoading() {
+  $("#boot-retry").hidden = true;
+  $("#boot").classList.remove("load-failed");
+  assetsReady = (async () => {
+    try {
+      await audioAssets.load(manifest.tracks, soundPaths, (fraction) => {
+        const percent = Math.floor(fraction * 97);
+        $(".boot-progress").style.setProperty("--loaded", `${percent}%`);
+        $(".boot-progress").setAttribute("aria-valuenow", String(percent));
+        $("#boot-percent").value = `${String(percent).padStart(2, "0")}%`;
+        $("#boot-status").textContent = t(
+          "正在载入声音档案…",
+          "LOADING SOUND ARCHIVE…",
+        );
+      });
+      await Promise.all([
+        engine.scrubber.prepare(),
+        document.fonts.ready,
+        ...[...document.querySelectorAll("img")].map((image) =>
+          image.decode().catch(() => {}),
+        ),
+      ]);
+      audio.src = asset(current.src);
+      audio.preload = "auto";
+      $(".boot-progress").style.setProperty("--loaded", "100%");
+      $(".boot-progress").setAttribute("aria-valuenow", "100");
+      $("#boot-percent").value = "100%";
+      $("#boot").classList.add("assets-ready");
+      $("#boot-status").textContent = t(
+        "声音已就绪 / 选择语言进入",
+        "AUDIO READY / SELECT LANGUAGE",
+      );
+      return true;
+    } catch {
+      $("#boot").classList.add("load-failed");
+      $("#boot-status").textContent = t(
+        "部分声音未能加载，请重试。",
+        "AUDIO LOAD INTERRUPTED. PLEASE RETRY.",
+      );
+      $("#boot-retry").hidden = false;
+      if (entered) $("#boot-retry").focus();
+      return false;
+    }
+  })();
+  if ((await assetsReady) && entered) finishEntry();
+}
 async function enterExperience(language) {
   if (entered) return;
   entered = true;
+  entryTime = performance.now();
   setLanguage(language);
   $$("[data-enter]").forEach((button) => {
     button.disabled = true;
   });
+  $("#boot").classList.add("booting");
   try {
     await engine.unlock();
   } catch {
@@ -275,61 +326,42 @@ async function enterExperience(language) {
       ),
     );
   }
-  await Promise.race([
-    cueReady,
-    new Promise((resolve) => setTimeout(resolve, 1200)),
-  ]);
+  if (await assetsReady) finishEntry();
+}
+async function finishEntry() {
+  if (opening) return;
+  opening = true;
   engine.sfx("bootupcrt");
-  $("#boot").classList.add("booting");
-  $(".boot-progress").hidden = false;
+  await engine.setBgmEnabled(engine.bgmEnabled);
   $("#boot-status").textContent = t(
-    "01 / 正在建立声音连接…",
-    "01 / ESTABLISHING AUDIO LINK…",
+    "连接完成 / 声音已就绪",
+    "CONNECTED / AUDIO READY",
   );
-  sfxReady.then(async () => {
-    await engine.setBgmEnabled(engine.bgmEnabled);
-  });
-  if (!reduced.matches) {
-    setTimeout(() => {
-      $("#boot-status").textContent = t(
-        "02 / 正在展开声音档案…",
-        "02 / UNFOLDING THE ARCHIVE…",
-      );
-    }, 1100);
-    setTimeout(() => {
-      $("#boot-status").textContent = t(
-        "03 / 正在组装界面…",
-        "03 / ASSEMBLING INTERFACE…",
-      );
-    }, 2350);
-  }
+  await new Promise((resolve) =>
+    setTimeout(
+      resolve,
+      motionAllowed()
+        ? Math.max(1050, 3200 - (performance.now() - entryTime))
+        : 0,
+    ),
+  );
+  $("#site").classList.add("site-enter");
+  if (motionAllowed()) engine.sfx("flicker");
+  await openBootValve($("#boot"), motionAllowed());
+  $("#boot").hidden = true;
+  $("#boot").style.display = "none";
+  document.body.classList.remove("boot-visible");
+  $("#site").inert = false;
+  $("[data-nav=overview]").focus({ preventScroll: true });
   setTimeout(
-    () => {
-      $("#boot-status").textContent = t(
-        "连接完成。欢迎来到声音档案。",
-        "CONNECTED. WELCOME TO THE ARCHIVE.",
-      );
-      $("#site").classList.add("site-enter");
-      if (motionAllowed()) engine.sfx("flicker");
-      $("#boot").classList.add("leaving");
-      setTimeout(
-        () => {
-          $("#boot").hidden = true;
-          $("#boot").style.display = "none";
-          document.body.classList.remove("boot-visible");
-          $("#site").inert = false;
-          $("#audio-play").focus({ preventScroll: true });
-          setTimeout(
-            () => $("#site").classList.remove("site-enter"),
-            reduced.matches ? 0 : 3100,
-          );
-        },
-        reduced.matches ? 0 : 850,
-      );
-    },
-    reduced.matches ? 150 : 3200,
+    () => $("#site").classList.remove("site-enter"),
+    motionAllowed() ? 1800 : 0,
   );
 }
+$("#boot-retry").addEventListener("click", () => {
+  engine.unlock();
+  startAudioLoading();
+});
 $$("[data-enter]").forEach((button) =>
   button.addEventListener("click", () => enterExperience(button.dataset.enter)),
 );
@@ -338,7 +370,9 @@ document.addEventListener("keydown", (event) => {
   if (!entered || !$("#boot").hidden) {
     if (event.key === "Tab") {
       event.preventDefault();
-      const buttons = $$("[data-enter]").filter((button) => !button.disabled);
+      const buttons = $$("[data-enter],#boot-retry").filter(
+        (button) => !button.disabled && !button.hidden,
+      );
       const index = buttons.indexOf(document.activeElement);
       buttons[
         (index + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length
@@ -373,15 +407,17 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener(
   "click",
   (event) => {
-    if (
-      !entered ||
-      !$("#boot").hidden ||
-      !event.target.closest("button,a,input[type=range]")
-    )
-      return;
-    if (event.target.closest("#sfx-toggle,#system-sfx,#system-bgm,.playground"))
-      return;
-    engine.sfx("clickevent");
+    if (event.target.closest(":disabled,[inert]")) return;
+    const interactive =
+      !event.target.closest(".playground") &&
+      event.target.closest("button,a,input,select,textarea,video");
+    engine
+      .unlock()
+      .then(() => {
+        engine.sfx("clickeffect");
+        if (interactive) engine.sfx("clickevent");
+      })
+      .catch(() => {});
   },
   true,
 );
@@ -428,7 +464,7 @@ $("#bgm-toggle").addEventListener("click", async () => {
   const enabled = !engine.bgmEnabled;
   engine.bgmEnabled = enabled;
   syncSoundControls();
-  await sfxReady;
+  await assetsReady;
   await engine.setBgmEnabled(engine.bgmEnabled);
 });
 let lastPreselect = { control: null, time: 0 };
@@ -505,7 +541,6 @@ $("#video-play").addEventListener("click", () => engine.toggle("video"));
 $("#video-overlay").addEventListener("click", () => engine.play("video"));
 video.addEventListener("click", () => {
   if (!video.paused) {
-    engine.sfx("clickevent");
     engine.pause("video");
   }
 });
@@ -739,6 +774,7 @@ initInterface({
   },
 });
 initTactileExperience({ engine, motionAllowed });
+initCrtLens(t);
 
 document.addEventListener("languagechange", () => {
   renderFilters();
@@ -752,3 +788,4 @@ $$("[data-language]").forEach((button) =>
   button.addEventListener("click", () => setLanguage(button.dataset.language)),
 );
 setLanguage("zh");
+startAudioLoading();

@@ -1,0 +1,619 @@
+/* Compact console geometry and a continuous settings/entry choreography. */
+.shell:not([data-view="overview"]) :is(.hero, .chassis-bridge) {
+  display: none;
+}
+.nav,
+.nav:is(:hover, :focus-visible, .active),
+.filter,
+.filter.active,
+.metal-button,
+.sfx-toggle,
+.system-open,
+.system-treatments button,
+.enter-button {
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+  border-radius: 0;
+  letter-spacing: 0;
+}
+.nav,
+.nav:is(:hover, :focus-visible, .active) {
+  height: 39px;
+  min-height: 39px;
+  padding: 6px 16px;
+}
+.nav b {
+  font-size: 12px;
+  line-height: 13px;
+  transform: scaleY(0.86);
+  letter-spacing: 0;
+}
+.nav small {
+  margin-top: 2px;
+  font-size: 7px;
+  line-height: 9px;
+  letter-spacing: 0;
+}
+.nav > span {
+  top: 5px;
+  right: 11px;
+  font-size: 6px;
+}
+.nav::before {
+  inset-inline: 13px;
+  bottom: 2px;
+}
+.navigation-caption {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  line-height: 10px;
+}
+.header-tools {
+  display: flex;
+  gap: 4px;
+  align-self: flex-end;
+}
+.header-tools :is(.sfx-toggle, .system-open) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  gap: 4px;
+  font-size: 8px;
+  line-height: 10px;
+}
+.header-tools :is(.sfx-toggle, .system-open) svg {
+  width: 14px;
+  height: 14px;
+}
+.header-tools .system-open {
+  width: 82px;
+}
+.header-tools :is(.sfx-toggle, .system-open) span {
+  margin: 0;
+  white-space: nowrap;
+}
+.system-open.expanded {
+  visibility: hidden;
+}
+.filter {
+  height: 44px;
+  min-height: 44px;
+  padding: 6px 15px;
+  line-height: 13px;
+}
+.filter > span {
+  font-size: 11px;
+}
+.filter span small {
+  line-height: 10px;
+  margin-top: 3px;
+  font-size: 7px;
+}
+.track {
+  height: 58px;
+  overflow: hidden;
+}
+.track .track-name {
+  font-size: 12px;
+  line-height: 15px;
+}
+.track-category {
+  font-size: 7px;
+  line-height: 10px;
+  margin-top: 3px;
+}
+.track:hover:not(.selected) {
+  background: var(--panel-high);
+}
+.track::after {
+  inset: -1px -32px;
+  background: var(--accent);
+  transform: translateX(-108%) skewX(-18deg);
+  transform-origin: center;
+  transition: transform 0.54s cubic-bezier(0.22, 0.75, 0.2, 1);
+}
+.track:is(:hover, :focus-visible, .crt-hover)::after {
+  transform: translateX(0) skewX(-18deg);
+}
+.track:is(:hover, :focus-visible, .crt-hover)
+  :is(.track-name, .track-category, .track-format, .track-length) {
+  color: var(--accent-ink);
+  transition: color 0.4s 0.12s;
+}
+.track.playing::after {
+  animation: none;
+}
+.section-bar {
+  min-height: 28px;
+  padding-block: 6px;
+}
+.board-notice {
+  min-height: 49px;
+}
+.biography-copy > p {
+  line-height: 1.7;
+}
+.library-heading,
+.panel-label {
+  padding-block: 9px;
+}
+.metal-button {
+  min-height: 32px;
+}
+.rotary-stage {
+  grid-template-columns: 1fr 260px 1fr;
+  column-gap: 28px;
+  height: 390px;
+}
+.rotary-assembly {
+  grid-column: 2;
+}
+.crank-charge {
+  grid-column: 3;
+  justify-self: start;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  width: 62px;
+  position: relative;
+  z-index: 2;
+}
+.crank-charge i {
+  display: block;
+  width: 62px;
+  height: 9px;
+  border-radius: 20px;
+  border: 1px solid #94854d;
+  background: #3e3b2d;
+  box-shadow: inset 0 2px 3px #0006;
+  transition:
+    background 0.18s,
+    box-shadow 0.35s;
+}
+.crank-charge i:last-child {
+  border-color: #a36661;
+  background: #513432;
+}
+.crank-charge i.lit {
+  background: #f5d16c;
+  border-color: #ffe8a0;
+  box-shadow:
+    0 0 12px #f2c65670,
+    inset 0 1px #fff3b7;
+}
+.crank-charge i:last-child.lit {
+  background: #ff7168;
+  border-color: #ffaea4;
+  box-shadow:
+    0 0 16px #ff5f5f80,
+    inset 0 1px #ffc1b2;
+}
+.crank-charge.charged i {
+  animation: charge-release 0.75s ease-out;
+}
+@keyframes charge-release {
+  30% {
+    filter: brightness(1.7);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+.system-dialog,
+.system-dialog[open],
+.system-dialog.closing {
+  position: fixed;
+  z-index: 80;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  border: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  clip-path: polygon(11px 0, 100% 0, calc(100% - 11px) 100%, 0 100%);
+  overflow: hidden;
+  animation: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+}
+.system-content {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 0 10px 14px;
+}
+.system-emblem {
+  position: absolute;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+.system-emblem svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+.system-titlebar {
+  height: 49px;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 16px 8px 40px;
+}
+.system-titlebar h2 {
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: 0;
+  transform: scaleY(0.9);
+}
+.system-titlebar button {
+  width: 28px;
+  height: 28px;
+  line-height: 26px;
+}
+.system-dialog .system-description {
+  height: 29px;
+  padding: 0 18px 12px;
+  margin: 0;
+  line-height: 16px;
+  color: var(--secondary);
+}
+.system-section {
+  padding: 11px 0;
+  margin-inline: 18px;
+}
+.system-section h3 {
+  height: 12px;
+  margin-bottom: 8px;
+  color: var(--secondary);
+  letter-spacing: 0;
+  line-height: 12px;
+}
+.system-section h3 span {
+  line-height: 12px;
+}
+.system-section > p,
+.system-section:has(.shortcut),
+.system-section:has(#system-playback-state),
+.system-log {
+  display: none;
+}
+.system-treatments button {
+  height: 32px;
+  min-height: 32px;
+  font-size: 8px;
+  padding: 6px;
+}
+.system-switch-row {
+  height: 47px;
+  padding-block: 9px;
+  letter-spacing: 0;
+  font-size: 9px;
+}
+.system-switch-row > span {
+  min-width: 0;
+  line-height: 14px;
+}
+.system-switch-row button {
+  flex: 0 0 63px;
+  height: 26px;
+  min-height: 26px;
+}
+.experimental-row > span {
+  color: var(--accent);
+}
+.system-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  background: #11181a0a;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  mask-image: linear-gradient(to left, #000 0 340px, transparent 780px);
+}
+.system-backdrop[hidden] {
+  display: none;
+}
+html.crt-mode {
+  filter: url(#crt-lens);
+  background: #0e1212;
+}
+html.crt-mode .nav.crt-hover:not(.active) {
+  background: var(--strata-far);
+}
+html.crt-mode .track:hover:not(.crt-hover)::after {
+  transform: translateX(-108%) skewX(-18deg);
+}
+html.crt-mode
+  .track:hover:not(.crt-hover, .selected)
+  :is(.track-name, .track-category, .track-format, .track-length) {
+  color: var(--ink);
+}
+.boot,
+.boot.leaving {
+  z-index: 60;
+  background: transparent;
+  opacity: 1;
+  clip-path: none;
+  transform: none;
+  transition: none;
+}
+.boot::before {
+  display: none;
+}
+.boot-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(
+      118deg,
+      transparent 0 47%,
+      #74837d22 47% 47.2%,
+      transparent 47.2%
+    ),
+    linear-gradient(118deg, #232b2b 0 47%, #303c3b 47% 67%, #202929 67%);
+  overflow: hidden;
+}
+.boot-circuit {
+  opacity: 0.24;
+}
+.boot-face .boot-center {
+  z-index: 1;
+}
+.boot-face .boot-grid {
+  opacity: 0.06;
+}
+.boot.booting .boot-center,
+.boot.booting .boot-symbol img {
+  animation: none;
+}
+.boot-progress {
+  width: 100%;
+  height: 6px;
+  margin: 12px 0;
+  background: #182020;
+  overflow: hidden;
+  clip-path: polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%);
+}
+.boot-progress i {
+  display: block;
+  width: var(--loaded, 0%);
+  height: 100%;
+  background: #cfb47b;
+  animation: none;
+  transition: width 0.35s ease-out;
+}
+.boot-telemetry {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 26px;
+  color: #b7c8ba;
+}
+.boot-telemetry output {
+  font: 10px var(--mono);
+  flex: 0 0 36px;
+  text-align: right;
+}
+.boot #boot-status {
+  margin: 0;
+  line-height: 15px;
+}
+.boot-loader {
+  display: flex;
+  gap: 5px;
+  height: 24px;
+  margin-top: 22px;
+  align-items: center;
+}
+.boot-loader i {
+  height: 8px;
+  width: 45px;
+  background: #9bac9e;
+  transform: skewX(-28deg);
+  animation: loader-pressure 1.9s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.boot-loader i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.boot-loader i:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.boot-loader i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.boot-loader i:nth-child(5) {
+  animation-delay: 0.4s;
+  background: #d2b581;
+}
+.assets-ready .boot-loader i {
+  animation-iteration-count: 1;
+  background: #d2b581;
+}
+@keyframes loader-pressure {
+  0%,
+  100% {
+    transform: skewX(-28deg) scaleY(1);
+    opacity: 0.35;
+  }
+  38% {
+    transform: skewX(-28deg) scaleY(2.4);
+    opacity: 1;
+  }
+  68% {
+    transform: skewX(-28deg) scaleY(0.7);
+    opacity: 0.8;
+  }
+}
+.boot-leaf {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+.boot-leaf-left {
+  clip-path: polygon(0 0, 62% 0, 38% 100%, 0 100%);
+}
+.boot-leaf-right {
+  clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%);
+}
+.boot-leaf .boot-face {
+  visibility: visible !important;
+}
+.boot-leaf .crt-power {
+  display: none;
+}
+.valve-open .boot-leaf * {
+  animation-play-state: paused !important;
+}
+#boot-retry[hidden] {
+  display: none;
+}
+.load-failed .boot-loader i {
+  animation-play-state: paused;
+}
+@media (max-width: 900px) {
+  .header-tools :is(.sfx-toggle, .system-open) {
+    width: 76px;
+  }
+}
+@media (max-width: 640px) {
+  .nav,
+  .nav:is(:hover, :focus-visible, .active) {
+    padding: 6px 8px;
+    height: 37px;
+    min-height: 37px;
+    text-align: center;
+    clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  }
+  .nav > span {
+    display: none;
+  }
+  .nav b {
+    font-size: 10px;
+  }
+  .nav small {
+    font-size: 6px;
+  }
+  .header-tools {
+    gap: 3px;
+  }
+  .header-tools :is(.sfx-toggle, .system-open) {
+    width: 66px;
+    height: 28px;
+    min-height: 28px;
+    font-size: 7px;
+  }
+  .filter {
+    width: 150px;
+    flex-basis: 150px;
+    height: 32px;
+    min-height: 32px;
+  }
+  .filter > span {
+    font-size: 10px;
+  }
+  .rotary-stage {
+    grid-template-columns: minmax(0, 260px) 32px;
+    justify-content: center;
+    gap: 0;
+    height: 350px;
+  }
+  .rotary-assembly {
+    grid-column: 1;
+    transform: scale(0.83);
+  }
+  .crank-charge {
+    grid-column: 2;
+    width: 29px;
+    gap: 7px;
+    margin-right: 8px;
+  }
+  .crank-charge i {
+    width: 29px;
+    height: 8px;
+  }
+  .rotary-caption {
+    left: 0;
+    right: 32px;
+    text-align: center;
+  }
+  .system-backdrop {
+    mask-image: linear-gradient(to left, #000 0 50%, #0005 100%);
+  }
+  .system-treatments button {
+    font-size: 7px;
+  }
+  .system-switch-row {
+    font-size: 8px;
+  }
+  .boot-face .boot-center {
+    padding-block: 35px;
+    max-height: 100%;
+    overflow: auto;
+  }
+  .boot-face .boot-rule {
+    top: 18px;
+  }
+  .boot-loader {
+    margin-top: 12px;
+  }
+  .boot h1 {
+    font-size: 36px;
+  }
+}
+@media (max-height: 620px) {
+  .boot .boot-symbol,
+  .boot-sequence,
+  .boot-foot {
+    display: none;
+  }
+  .boot-face .boot-center {
+    padding-block: 40px;
+  }
+  .boot h1 {
+    font-size: 32px;
+  }
+  .boot .language-entry {
+    min-height: 50px;
+    margin: 4px 0;
+  }
+  .boot .enter-button {
+    margin: 4px 0;
+    min-height: 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loader i,
+  .crank-charge.charged i {
+    animation: none;
+  }
+}
+body.motion-off :is(.boot-loader i, .crank-charge.charged i) {
+  animation: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .system-dialog {
+    background: var(--panel);
+    backdrop-filter: none;
+  }
+  .system-backdrop {
+    backdrop-filter: none;
+  }
+}

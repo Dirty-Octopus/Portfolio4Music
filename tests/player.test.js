@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Scrubber } from "../src/scrubber.js";
-import { SurpriseBag } from "../src/surprise.js";
+import { TurnCharge } from "../src/surprise.js";
 import {
   PlaybackEngine,
   formatTime,
@@ -376,7 +376,7 @@ test("intro cues play once and retain their tail through hover and click sounds"
   await engine.sfx("preselect");
   const hover = engine.sfxVoice.source;
   await engine.sfx("clickeffect");
-  assert.equal(hover.stopped, 1);
+  assert.equal(hover.stopped, 0);
   assert.equal(flicker.stopped, 0);
   assert.equal(flicker.loop, undefined);
   await engine.sfx("flicker");
@@ -675,16 +675,30 @@ test("fader decoding cannot start stale sound after a stop", async () => {
   assert.equal(context.sources.length, 0);
 });
 
-test("surprises are guaranteed by turn 50 and reset after every hit", () => {
-  const bag = new SurpriseBag(() => 0.99);
+test("ten turns charge every lamp and guarantee a surprise on each tenth turn", () => {
+  const charge = new TurnCharge();
+  assert.equal(charge.level, 0);
   for (let cycle = 0; cycle < 3; cycle++) {
-    for (let turn = 1; turn < 50; turn++) assert.equal(bag.turn(), false);
-    assert.equal(bag.turn(), true);
-    assert.equal(bag.misses, 0);
+    for (let turn = 1; turn < 10; turn++) {
+      assert.equal(charge.turn(), false);
+      assert.equal(charge.level, turn);
+    }
+    assert.equal(charge.turn(), true);
+    assert.equal(charge.level, 10);
   }
-  bag.random = () => 0;
-  assert.equal(bag.turn(), true);
-  assert.equal(bag.misses, 0);
+});
+
+test("blank clicks, interactive clicks and scanner sweeps retain independent tails", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  for (const name of ["clickeffect", "clickevent", "scanner", "preselect"]) {
+    engine.buffers[name] = { duration: 1 };
+    await engine.sfx(name);
+  }
+  assert.equal(context.sources.length, 4);
+  assert.ok(context.sources.every((source) => !source.stopped));
+  engine.stopSfx();
+  assert.ok(context.sources.every((source) => source.stopped === 1));
 });
 
 test("surprise, round and detent sounds overlap independently and all obey SFX off", async () => {

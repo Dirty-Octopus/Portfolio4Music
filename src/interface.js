@@ -1,6 +1,7 @@
 /** A shared cover/reveal timeline includes the banner, notice and content. */
 import { t, trackTitle } from "./i18n.js";
 import { scrambleText } from "./text-transition.js";
+import { initSettings } from "./settings.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const labels = {
@@ -76,6 +77,7 @@ export function changeView(view) {
     el.classList.toggle("pending", el.dataset.nav === view),
   );
   if (!motionAllowed()) {
+    options.engine.sfx("scanner");
     settleTransition();
     return;
   }
@@ -87,6 +89,7 @@ export function changeView(view) {
 }
 
 async function sweep() {
+  options.engine.sfx("scanner");
   const ticket = ++generation;
   const surface = $(".module-surface");
   const layers = $$(".module-wipe i");
@@ -180,48 +183,19 @@ export function initInterface(config) {
   } catch {
     processArtwork("duotone");
   }
-  const dialog = $("#system-dialog");
-  const close = () => {
-    if (!dialog.open || dialog.classList.contains("closing")) return;
-    dialog.classList.add("closing");
-    setTimeout(
-      () => {
-        dialog.close();
-        dialog.classList.remove("closing");
-        $("#system-open").setAttribute("aria-expanded", "false");
-        $("#system-open").focus({ preventScroll: true });
-      },
-      motionAllowed() ? 550 : 0,
-    );
-  };
-  $("#system-open").addEventListener("click", () => {
-    dialog.showModal();
-    $("#system-open").setAttribute("aria-expanded", "true");
-    $("#system-sfx").setAttribute(
-      "aria-checked",
-      String(config.engine.sfxEnabled),
-    );
-    $("#system-sfx").textContent = config.engine.sfxEnabled
-      ? t("开", "ON")
-      : t("关", "OFF");
-    updateState();
-    logAction(t("系统控制 / 开启", "SYSTEM CONTROL / OPEN"));
-  });
-  $("#system-close").addEventListener("click", close);
-  dialog.addEventListener("cancel", (event) => {
-    event.preventDefault();
-    close();
-  });
-  dialog.addEventListener("click", (event) => {
-    if (event.target !== dialog) return;
-    const r = dialog.getBoundingClientRect();
-    if (
-      event.clientX < r.left ||
-      event.clientX > r.right ||
-      event.clientY < r.top ||
-      event.clientY > r.bottom
-    )
-      close();
+  initSettings({
+    motionAllowed,
+    onOpen: () => {
+      $("#system-sfx").setAttribute(
+        "aria-checked",
+        String(config.engine.sfxEnabled),
+      );
+      $("#system-sfx").textContent = config.engine.sfxEnabled
+        ? t("开", "ON")
+        : t("关", "OFF");
+      updateState();
+      logAction(t("系统控制 / 开启", "SYSTEM CONTROL / OPEN"));
+    },
   });
   $$("button[data-treatment]").forEach((button) =>
     button.addEventListener("click", () =>

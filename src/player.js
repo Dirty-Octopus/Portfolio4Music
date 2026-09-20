@@ -74,7 +74,7 @@ export class PlaybackEngine {
       element.addEventListener("playing", () => this.onChange());
     }
   }
-  unlock() {
+  initialize() {
     if (!this.context) {
       this.context = this.contextFactory();
       this.master = this.context.createGain();
@@ -93,6 +93,10 @@ export class PlaybackEngine {
         this.gains[kind] = gain;
       }
     }
+    return this.context;
+  }
+  unlock() {
+    this.initialize();
     // Invoke synchronously from the gesture; never defer the resume call.
     return this.context.state !== "running"
       ? this.context.resume()
@@ -241,7 +245,13 @@ export class PlaybackEngine {
         ? "accent"
         : name === "suprise"
           ? "surprise"
-          : "sfx";
+          : name === "clickeffect"
+            ? "click"
+            : name === "clickevent"
+              ? "event"
+              : name === "scanner"
+                ? "scanner"
+                : "sfx";
     const serialKey = `${lane}Serial`;
     const voiceKey = `${lane}Voice`;
     const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
@@ -264,6 +274,8 @@ export class PlaybackEngine {
           clack: 0.16,
           lowerclack: 0.15,
           clickevent: 0.19,
+          clickeffect: 0.15,
+          scanner: 0.2,
           round: 0.24,
           suprise: 0.24,
         }[name] ?? 0.19;
@@ -371,6 +383,10 @@ export class PlaybackEngine {
     this.stopVoice("cueVoice");
     this.stopVoice("accentVoice");
     this.stopVoice("surpriseVoice");
+    for (const lane of ["click", "event", "scanner"]) {
+      this[`${lane}Serial`] = (this[`${lane}Serial`] || 0) + 1;
+      this.stopVoice(`${lane}Voice`);
+    }
     this.scrubber?.stop();
   }
   stopVoice(voiceKey) {

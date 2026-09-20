@@ -60,6 +60,7 @@ const content = {
   douyinLikes: ["抖音累计获赞", "DOUYIN / TOTAL LIKES"],
   playground: ["有趣的东西", "OFF THE RECORD"],
   rotary: ["摇把", "WINDOW CRANK"],
+  crtLens: ["视角畸变 · 实验性", "CRT LENS · EXPERIMENTAL"],
 };
 
 // Explicit selectors keep translation separate from playback and icon markup.
@@ -194,6 +195,8 @@ const attributes = {
   "#system-bgm": content.bgm,
   "#system-sfx": ["交互音效", "Interface sounds"],
   "#motion-toggle": ["界面动画", "Interface motion"],
+  "#crt-toggle": ["实验性 CRT 视角畸变", "Experimental CRT lens distortion"],
+  ".crank-charge": ["摇把蓄能", "Crank charge"],
   ".brand": ["Dirty Octopus 首页", "Dirty Octopus home"],
   nav: ["主要导航", "Main navigation"],
   ".hero": ["声音创作作品集", "Music and sound design portfolio"],

@@ -1,6 +1,6 @@
 import { clamp } from "./player.js";
 import { initFader } from "./fader.js";
-import { SurpriseBag } from "./surprise.js";
+import { TurnCharge } from "./surprise.js";
 
 const ease = (t) => t * t * (3 - 2 * t);
 const detentCount = 12;
@@ -132,6 +132,9 @@ function initScroll(engine, motionAllowed) {
     true,
   );
   document.addEventListener("pointerdown", (event) => {
+    // A new interaction must also cancel a pending snap when it starts on a control.
+    stop();
+    touching = false;
     if (
       !enabled() ||
       event.target.closest(
@@ -139,7 +142,6 @@ function initScroll(engine, motionAllowed) {
       )
     )
       return;
-    stop();
     touching = true;
     begin(scrollable(event.target, 1));
   });
@@ -179,22 +181,17 @@ function initScroll(engine, motionAllowed) {
 }
 
 function initRotary(engine, motionAllowed) {
-  const surprises = new SurpriseBag();
-  const emojis = [
-    "\u2728",
-    "\ud83d\ude80",
-    "\ud83c\udf4b",
-    "\ud83d\udc7e",
-    "\ud83d\udd25",
-    "\ud83d\udc8e",
-    "\ud83c\udfb2",
-    "\ud83e\udea9",
-  ];
+  const charge = new TurnCharge();
+  const emojis = Array.from(
+    "😀😃😄😁😆😅😂🙂🙃😉😊😍🤩😘😋😛😜🤪😎🥳😏😮😲🥺😵",
+  );
   const knob = document.querySelector("#rotary-knob");
   const stage = document.querySelector(".rotary-stage");
   const canvas = document.querySelector("#rotary-particles");
   const ctx = canvas.getContext("2d");
   const ticks = document.querySelector(".rotary-ticks");
+  const meter = document.querySelector(".crank-charge");
+  const lamps = [...meter.children];
   for (let i = 0; i < detentCount; i++) {
     const tick = document.createElement("i");
     tick.style.transform = `rotate(${i * detent}deg)`;
@@ -224,15 +221,22 @@ function initRotary(engine, motionAllowed) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   new ResizeObserver(resize).observe(stage);
-  function burst(gold = false, emoji = null) {
+  function burst(gold = false, surprise = false) {
     if (!motionAllowed()) return;
-    const count = gold ? 100 : 14;
+    const count = surprise ? 74 : gold ? 100 : 14;
+    const hub = knob.querySelector(".crank-hub").getBoundingClientRect();
+    const bounds = stage.getBoundingClientRect();
+    const origin = {
+      x: hub.left + hub.width / 2 - bounds.left,
+      y: hub.top + hub.height / 2 - bounds.top,
+    };
+    const offset = Math.floor(Math.random() * emojis.length);
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
       const speed = (gold ? 150 : 80) + Math.random() * (gold ? 190 : 125);
       particles.push({
-        x: width / 2 + Math.cos(a) * 65,
-        y: height / 2 + Math.sin(a) * 65,
+        x: origin.x + Math.cos(a) * 3,
+        y: origin.y + Math.sin(a) * 3,
         vx: Math.cos(a) * speed,
         vy: Math.sin(a) * speed,
         age: 0,
@@ -241,7 +245,7 @@ function initRotary(engine, motionAllowed) {
           ? ["#ffe3a1", "#efbf59", "#eac67b"][i % 3]
           : ["#b5e1d5", "#d79189", "#91bed5"][i % 3],
         size: gold ? 2 : 1.3,
-        emoji,
+        emoji: surprise ? emojis[(offset + i * 7) % emojis.length] : null,
         rotation: Math.random() * 2 - 1,
       });
     }
@@ -256,12 +260,14 @@ function initRotary(engine, motionAllowed) {
       if (Math.abs(revolution) >= detentCount) {
         revolution = 0;
         engine.sfx("round");
-        const surprise = surprises.turn();
-        if (surprise) engine.sfx("suprise");
-        burst(
-          true,
-          surprise ? emojis[Math.floor(Math.random() * emojis.length)] : null,
+        const surprise = charge.turn();
+        meter.setAttribute("aria-valuenow", String(charge.level));
+        lamps.forEach((lamp, index) =>
+          lamp.classList.toggle("lit", index < charge.level),
         );
+        meter.classList.toggle("charged", surprise);
+        if (surprise) engine.sfx("suprise");
+        burst(true, surprise);
         if (motionAllowed()) {
           shake?.cancel();
           shake = document

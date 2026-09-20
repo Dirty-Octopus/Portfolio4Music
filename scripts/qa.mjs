@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { lensDisplayPoint } from "../src/crt.js";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const QA_DIR = join(ROOT, ".qa");
@@ -224,8 +225,13 @@ async function main() {
   const click = async (selector) => {
     const box = await boxOf(selector);
     if (!box) throw new Error(`missing element ${selector}`);
-    const x = box.x + box.w / 2,
+    let x = box.x + box.w / 2,
       y = box.y + box.h / 2;
+    const viewport = await evaluate(
+      `({ width: document.documentElement.clientWidth, height: innerHeight, crt: document.documentElement.classList.contains('crt-mode') })`,
+    );
+    if (viewport.crt)
+      ({ x, y } = lensDisplayPoint(x, y, viewport.width, viewport.height));
     await cdp.send("Input.dispatchMouseEvent", {
       type: "mousePressed",
       x,
@@ -249,10 +255,16 @@ async function main() {
     const y = box.y + box.h / 2;
     const x1 = box.x + box.w * from,
       x2 = box.x + box.w * to;
+    const viewport = await evaluate(
+      `({ width: document.documentElement.clientWidth, height: innerHeight, crt: document.documentElement.classList.contains('crt-mode') })`,
+    );
+    const point = (x) =>
+      viewport.crt
+        ? lensDisplayPoint(x, y, viewport.width, viewport.height)
+        : { x, y };
     await cdp.send("Input.dispatchMouseEvent", {
       type: "mousePressed",
-      x: x1,
-      y,
+      ...point(x1),
       button: "left",
       clickCount: 1,
       buttons: 1,
@@ -260,8 +272,7 @@ async function main() {
     for (let i = 1; i <= 6; i++) {
       await cdp.send("Input.dispatchMouseEvent", {
         type: "mouseMoved",
-        x: x1 + ((x2 - x1) * i) / 6,
-        y,
+        ...point(x1 + ((x2 - x1) * i) / 6),
         button: "left",
         buttons: 1,
       });
@@ -269,8 +280,7 @@ async function main() {
     }
     await cdp.send("Input.dispatchMouseEvent", {
       type: "mouseReleased",
-      x: x2,
-      y,
+      ...point(x2),
       button: "left",
       clickCount: 1,
       buttons: 0,
@@ -327,11 +337,20 @@ async function main() {
   await waitFor(
     `document.querySelector('#boot').classList.contains('booting')`,
   );
+  await waitFor(`document.querySelectorAll('.boot-leaf').length === 2`, 30000);
+  check(
+    "the valve waits for the complete audio archive",
+    await evaluate(
+      `document.querySelector('.boot-progress').getAttribute('aria-valuenow') === '100' && document.querySelector('#audio').src.startsWith('blob:')`,
+    ),
+  );
+  await sleepMs(200);
+  await shot("20-valve-opening");
   await sleepMs(180);
   await shot("14-crt-ignition");
   await waitFor(
     `document.querySelector('#boot').hidden === true`,
-    8000,
+    30000,
     "boot dismissal",
   );
   await sleepMs(2200);
@@ -360,6 +379,25 @@ async function main() {
   check(
     "flicker follows the CRT startup as a separate reveal cue",
     flickers[0]?.at - sfxAfterEnter[0]?.at >= 2900,
+  );
+  const blankStart = await evaluate(`window.__qa.sfxStarts.length`);
+  for (const type of ["mousePressed", "mouseReleased"])
+    await cdp.send("Input.dispatchMouseEvent", {
+      type,
+      x: 8,
+      y: 350,
+      button: "left",
+      clickCount: 1,
+      buttons: type === "mousePressed" ? 1 : 0,
+    });
+  await sleepMs(50);
+  const blankSounds = await evaluate(
+    `window.__qa.sfxStarts.slice(${blankStart}).map(s=>s.duration)`,
+  );
+  check(
+    "blank clicks play only the universal click effect",
+    blankSounds.length === 1 && Math.abs(blankSounds[0] - 0.208345) < 0.002,
+    JSON.stringify(blankSounds),
   );
   check(
     "navigation and hero have shaped silhouettes",
@@ -475,6 +513,13 @@ async function main() {
   );
 
   console.log("· playback checks");
+  check(
+    "new visitors see the compact player first",
+    await evaluate(
+      `document.querySelector('.transport').classList.contains('collapsed')`,
+    ),
+  );
+  await click("#dock-toggle");
   await click(".track");
   await sleepMs(600);
   check(
@@ -667,8 +712,17 @@ async function main() {
   await click("#mute");
 
   console.log("· view morphs, language and settings");
+  const scansBefore = await evaluate(
+    `window.__qa.sfxStarts.filter(s=>Math.abs(s.duration-.967914)<.002).length`,
+  );
   await click('[data-nav="overview"]');
   await sleepMs(420);
+  check(
+    "tab transitions play the scanner accent",
+    await evaluate(
+      `window.__qa.sfxStarts.filter(s=>Math.abs(s.duration-.967914)<.002).length === ${scansBefore + 1}`,
+    ),
+  );
   check(
     "the whole content plane animates as one continuous surface",
     await evaluate(
@@ -703,6 +757,12 @@ async function main() {
     JSON.stringify(retarget),
   );
   await waitFor(`document.querySelector('.shell').dataset.view === 'fun'`);
+  check(
+    "banner is hidden outside the profile",
+    await evaluate(
+      `getComputedStyle(document.querySelector('.hero')).display === 'none'`,
+    ),
+  );
   await sleepMs(220);
   const reversal = await evaluate(`(() => {
     const workspace = document.querySelector('.module-wipe i');
@@ -873,6 +933,27 @@ async function main() {
     buttons: 0,
   });
   console.log("· direct fader and SoundTouch stretching");
+  await evaluate(
+    `window.__qa.emojis = []; document.querySelector('#rotary-knob').focus()`,
+  );
+  // First turn plus two notches already completed above; finish the tenth turn.
+  for (let turn = 0; turn < 9; turn++) {
+    await evaluate(
+      `{ const knob = document.querySelector('#rotary-knob'); for(let i=0;i<${turn === 0 ? 10 : 12};i++) knob.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true})); }`,
+    );
+    await sleepMs(620);
+  }
+  check(
+    "tenth revolution fills all ten lamps",
+    await evaluate(
+      `document.querySelector('.crank-charge').getAttribute('aria-valuenow') === '10' && document.querySelectorAll('.crank-charge i.lit').length === 10`,
+    ),
+  );
+  check(
+    "emoji fireworks mix many distinct yellow faces",
+    await evaluate(`new Set(window.__qa.emojis).size >= 12`),
+  );
+  await shot("21-charged-crank");
   check(
     "fader occupies its own module below the rotary",
     await evaluate(
@@ -1048,8 +1129,25 @@ async function main() {
       `document.querySelector('#screen-noise').getContext('2d').getImageData(0,0,1,1).data[3] === 255`,
     ),
   );
+  const settingsClickStart = await evaluate(`window.__qa.sfxStarts.length`);
   await click("#system-open");
-  await sleepMs(1000);
+  await sleepMs(130);
+  check(
+    "settings grows from its trigger before revealing controls",
+    await evaluate(
+      `document.querySelector('#system-dialog').getBoundingClientRect().width > 82 && document.querySelector('#system-dialog').getBoundingClientRect().width < 408 && document.querySelector('.system-content').inert && document.querySelector('#system-open').classList.contains('expanded')`,
+    ),
+  );
+  await shot("22-settings-morph");
+  await sleepMs(850);
+  const settingsSounds = await evaluate(
+    `window.__qa.sfxStarts.slice(${settingsClickStart}).map(s=>s.duration)`,
+  );
+  check(
+    "interactive clicks layer event sound over the universal click",
+    settingsSounds.some((d) => Math.abs(d - 0.208345) < 0.002) &&
+      settingsSounds.some((d) => Math.abs(d - 1 / 6) < 0.002),
+  );
   const uiSizes = () =>
     evaluate(
       `Object.fromEntries([...document.querySelectorAll('.nav,.header-tools button,.hero-sub,#explore,.playground-heading,.toy-heading,.transport,#system-dialog,.system-switch-row button')].map((el,i)=>{const r=el.getBoundingClientRect();return [el.id||'element'+i,[r.x,r.y,r.width,r.height]]}))`,
@@ -1069,7 +1167,10 @@ async function main() {
   check(
     "settings uses a local clear-to-frosted backdrop",
     await evaluate(
-      `getComputedStyle(document.querySelector('#system-dialog'),'::backdrop').backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(document.querySelector('#system-dialog'),'::backdrop').maskImage.includes('gradient')`,
+      `getComputedStyle(document.querySelector('.system-backdrop')).maskImage.includes('gradient') && getComputedStyle(document.querySelector('.system-backdrop')).backdropFilter.includes('blur')`,
+    ),
+    await evaluate(
+      `JSON.stringify({ mask:getComputedStyle(document.querySelector('.system-backdrop')).maskImage, filter:getComputedStyle(document.querySelector('.system-backdrop')).backdropFilter, reduced:matchMedia('(prefers-reduced-transparency: reduce)').matches, hidden:document.querySelector('.system-backdrop').hidden })`,
     ),
   );
   check(
@@ -1116,6 +1217,164 @@ async function main() {
     ),
   );
   await shot("09-settings-en");
+  await click("#crt-toggle");
+  await sleepMs(450);
+  check(
+    "CRT option applies a real SVG displacement",
+    await evaluate(
+      `document.documentElement.classList.contains('crt-mode') && getComputedStyle(document.documentElement).filter.includes('crt-lens')`,
+    ),
+  );
+  await shot("23-crt-settings");
+  await drag("#softness", 0.1, 0.8);
+  check(
+    "CRT range dragging follows the visible thumb",
+    await evaluate(
+      `Math.abs(Number(document.querySelector('#softness').value)-.65) < .06`,
+    ),
+  );
+  await drag("#softness", 0.8, 0);
+  await click("#system-close");
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+  // Colored targets independently verify raster placement, then their actual visible pixels are clicked.
+  for (const [mx, my] of [
+    [24, 24],
+    [1416, 24],
+    [24, 876],
+    [1416, 876],
+  ]) {
+    await evaluate(
+      `(() => { const e=document.createElement('button'); e.id='qa-lens-probe'; e.style.cssText='all:initial;position:fixed;left:${mx - 4}px;top:${my - 4}px;width:8px;height:8px;background:rgb(0,255,0);z-index:999999'; e.onclick=()=>window.__qa.probeHit=true; document.body.append(e); window.__qa.probeHit=false; })()`,
+    );
+    await sleepMs(80);
+    const { data } = await cdp.send("Page.captureScreenshot", {
+      format: "png",
+    });
+    const center = await evaluate(
+      `(async () => { const img=new Image();img.src='data:image/png;base64,${data}';await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const d=ctx.getImageData(0,0,c.width,c.height).data;let x=0,y=0,n=0;for(let i=0;i<d.length;i+=4){if(d[i+1]>220 && d[i]<30 && d[i+2]<30){x+=(i/4)%c.width;y+=Math.floor(i/4/c.width);n++;}}return {x:x/n+.5,y:y/n+.5,n};})()`,
+    );
+    const expected = lensDisplayPoint(mx, my, 1440, 900);
+    check(
+      `CRT raster follows the lens map at ${mx},${my}`,
+      center.n > 8 &&
+        Math.hypot(center.x - expected.x, center.y - expected.y) < 1.8,
+      JSON.stringify({ center, expected }),
+    );
+    if (center.n) {
+      for (const type of ["mousePressed", "mouseReleased"])
+        await cdp.send("Input.dispatchMouseEvent", {
+          type,
+          x: center.x,
+          y: center.y,
+          button: "left",
+          buttons: type === "mousePressed" ? 1 : 0,
+          clickCount: 1,
+        });
+      check(
+        `CRT visible target is clickable at ${mx},${my}`,
+        await evaluate(`window.__qa.probeHit`),
+      );
+    }
+    await evaluate(`document.querySelector('#qa-lens-probe').remove()`);
+  }
+  await drag(".fader-travel", 0.2, 0.8);
+  check(
+    "CRT mouse dragging keeps the fader under the visible handle",
+    await evaluate(
+      `Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow')) === 80`,
+    ),
+  );
+  const rotateThroughLens = async (touch = false) => {
+    const r = await boxOf("#rotary-knob");
+    const viewport = await evaluate(
+      `({w:document.documentElement.clientWidth,h:innerHeight,y:scrollY,value:Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))})`,
+    );
+    for (let step = 0; step <= 8; step++) {
+      const a = (step * Math.PI) / 16;
+      const point = lensDisplayPoint(
+        r.x + r.w / 2 + 45 * Math.cos(a),
+        r.y + r.h / 2 + 45 * Math.sin(a),
+        viewport.w,
+        viewport.h,
+      );
+      if (touch)
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: step ? "touchMove" : "touchStart",
+          touchPoints: [point],
+        });
+      else
+        await cdp.send("Input.dispatchMouseEvent", {
+          type: step ? "mouseMoved" : "mousePressed",
+          ...point,
+          button: "left",
+          buttons: 1,
+          clickCount: 1,
+        });
+      await sleepMs(25);
+    }
+    const point = lensDisplayPoint(
+      r.x + r.w / 2,
+      r.y + r.h / 2 + 45,
+      viewport.w,
+      viewport.h,
+    );
+    if (touch)
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+    else
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseReleased",
+        ...point,
+        button: "left",
+        buttons: 0,
+        clickCount: 1,
+      });
+    await sleepMs(600);
+    const after = await evaluate(
+      `({value:Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')),y:scrollY,dragging:document.querySelector('#rotary-knob').classList.contains('dragging'),gestures:window.__qa.gestures.slice(-14)})`,
+    );
+    return {
+      ok:
+        after.value === (viewport.value + 90) % 360 &&
+        Math.abs(after.y - viewport.y) < 2,
+      before: viewport,
+      after,
+    };
+  };
+  const crtMouseCrank = await rotateThroughLens();
+  check(
+    "CRT mouse rotation stays attached to the crank",
+    crtMouseCrank.ok,
+    JSON.stringify(crtMouseCrank),
+  );
+  await click("#system-open");
+  await sleepMs(900);
+  await click("#crt-toggle");
+  await click("#system-close");
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+  await click("#system-open");
+  await sleepMs(170);
+  const growing = await evaluate(
+    `document.querySelector('#system-dialog').getBoundingClientRect().width`,
+  );
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "Escape",
+    code: "Escape",
+    windowsVirtualKeyCode: 27,
+  });
+  const reversing = await evaluate(
+    `document.querySelector('#system-dialog').getBoundingClientRect().width`,
+  );
+  check(
+    "settings can reverse into its trigger without restarting geometry",
+    Math.abs(growing - reversing) < 24,
+  );
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+  await click("#system-open");
+  await sleepMs(900);
   await click("#motion-toggle");
   await click("#system-close");
   await waitFor(`!document.querySelector('#system-dialog').open`);
@@ -1271,12 +1530,12 @@ async function main() {
   );
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
-    touchPoints: [{ x: 150, y: 440 }],
+    touchPoints: [{ x: 35, y: 440 }],
   });
   for (let i = 1; i <= 8; i++) {
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: [{ x: 150, y: 440 - i * 27 }],
+      touchPoints: [{ x: 35, y: 440 - i * 27 }],
     });
     await sleepMs(30);
   }
@@ -1298,6 +1557,53 @@ async function main() {
       `document.querySelector('.scroll-ruler i').style.top !== ${JSON.stringify(rulerBefore)}`,
     ),
   );
+  await click("#system-open");
+  check(
+    "mobile settings fit the screen with all controls reachable",
+    await evaluate(
+      `(()=>{const d=document.querySelector('#system-dialog').getBoundingClientRect(),c=document.querySelector('.system-content');return d.left>=0 && d.right<=innerWidth && d.top>=0 && d.bottom<=innerHeight && c.scrollWidth<=c.clientWidth;})()`,
+    ),
+  );
+  await click("#crt-toggle");
+  await shot("24-mobile-crt-settings");
+  await click("#system-close");
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+  const crtTouchCrank = await rotateThroughLens(true);
+  check(
+    "CRT touch rotation remains aligned without page scrolling",
+    crtTouchCrank.ok,
+    JSON.stringify(crtTouchCrank),
+  );
+  const crtFader = await boxOf(".fader-travel");
+  const crtViewport = await evaluate(
+    `({w:document.documentElement.clientWidth,h:innerHeight,y:scrollY})`,
+  );
+  for (const [type, fraction] of [
+    ["touchStart", 0.2],
+    ["touchMove", 0.85],
+  ]) {
+    const point = lensDisplayPoint(
+      crtFader.x + crtFader.w * fraction,
+      crtFader.y + crtFader.h / 2,
+      crtViewport.w,
+      crtViewport.h,
+    );
+    await cdp.send("Input.dispatchTouchEvent", { type, touchPoints: [point] });
+  }
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  check(
+    "CRT touch fader follows its visible position",
+    await evaluate(
+      `Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow'))===85 && Math.abs(scrollY-${crtViewport.y})<2`,
+    ),
+  );
+  await click("#system-open");
+  await click("#crt-toggle");
+  await click("#system-close");
+  await waitFor(`!document.querySelector('#system-dialog').open`);
 
   console.log("· direct English entry and OS reduced motion");
   await cdp.send("Emulation.setEmulatedMedia", {
@@ -1358,6 +1664,8 @@ async function main() {
 const qaHook = `
 (() => {
   const stats = window.__qa = { sfxStarts: [], sources: [], stretchPeak: 0, errors: [], gestures: [] };
+  const fillText = CanvasRenderingContext2D.prototype.fillText;
+  CanvasRenderingContext2D.prototype.fillText = function(text,...args) { if(this.canvas.id==='rotary-particles' && stats.emojis) stats.emojis.push(text); return fillText.call(this,text,...args); };
   for (const name of ['pointerdown','pointerup','pointercancel','wheel','scroll']) {
     document.addEventListener(name,event=>{stats.gestures.push([name, Math.round(performance.now()),event.target.id||event.target.tagName,scrollY]);if(stats.gestures.length>100)stats.gestures.shift();},true);
   }
