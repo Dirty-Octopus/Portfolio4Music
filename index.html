@@ -324,7 +324,11 @@
               <div class="playground-heading">
                 <span class="micro">03 / OFF THE RECORD</span>
                 <h2 id="playground-title" data-i18n="playground">有趣的东西</h2>
-                <span class="micro">ROTARY / 01</span>
+                <span class="micro">SOUND OBJECTS</span>
+              </div>
+              <div class="toy-heading">
+                <h3 data-i18n="rotary">旋钮</h3>
+                <span>01 / ROTARY</span>
               </div>
               <div class="rotary-stage">
                 <canvas id="rotary-particles" aria-hidden="true"></canvas>
@@ -358,6 +362,42 @@
                   >SOUND / IN MOTION</span
                 >
               </div>
+              <section class="fader-module" aria-labelledby="fader-title">
+                <div class="toy-heading">
+                  <h3 id="fader-title">NEURAA</h3>
+                  <span>02 / FADER</span>
+                </div>
+                <div class="fader-stage">
+                  <div
+                    id="neuraa-slider"
+                    role="slider"
+                    tabindex="0"
+                    aria-label="滑块目标"
+                    aria-orientation="horizontal"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="50"
+                  >
+                    <div class="fader-travel">
+                      <div class="fader-scale" aria-hidden="true"></div>
+                      <div class="fader-rail" aria-hidden="true"></div>
+                      <div class="fader-tether" aria-hidden="true"></div>
+                      <span class="fader-projection" aria-hidden="true"
+                        ><i></i
+                      ></span>
+                      <span class="fader-target" aria-hidden="true"
+                        ><i></i
+                      ></span>
+                      <span class="fader-end fader-left" aria-hidden="true"
+                        >L</span
+                      >
+                      <span class="fader-end fader-right" aria-hidden="true"
+                        >R</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </section>
             </section>
             <aside class="catalog">
               <h2 class="panel-label">声音索引 <span>INDEX</span></h2>

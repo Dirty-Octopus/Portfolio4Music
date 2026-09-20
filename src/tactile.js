@@ -1,4 +1,5 @@
 import { clamp } from "./player.js";
+import { initFader } from "./fader.js";
 
 const ease = (t) => t * t * (3 - 2 * t);
 const detent = 15;
@@ -7,6 +8,7 @@ const wrap = (degrees) => ((degrees % 360) + 360) % 360;
 export function initTactileExperience({ engine, motionAllowed }) {
   initScroll(engine, motionAllowed);
   initRotary(engine, motionAllowed);
+  initFader(engine);
   initNoise(motionAllowed);
 }
 
@@ -16,84 +18,40 @@ function initScroll(engine, motionAllowed) {
   const step = 56;
   let active = null,
     frame = 0,
-    lastWheel = 0,
-    remainder = 0;
-  let nativeTarget = null,
-    nativeTimer = 0,
+    timer = 0,
     touching = false,
-    nativeMoved = false;
+    gesture = null;
   const maxScroll = (el) => Math.max(0, el.scrollHeight - el.clientHeight);
   const scroll = (el, y) => el.scrollTo({ top: y, behavior: "instant" });
   const enabled = () =>
     !document.body.classList.contains("boot-visible") &&
     !document.querySelector("#system-dialog").open;
   function rulerPosition() {
-    ruler.style.top = `${(root.scrollTop / (maxScroll(root) || 1)) * 100}%`;
-  }
-  function finishTick(el, from, to) {
-    scroll(el, to);
-    if (Math.abs(to - from) > 1) engine.sfx("clack");
-    rulerPosition();
+    const progress = clamp(root.scrollTop / (maxScroll(root) || 1), 0, 1);
+    ruler.style.top = `${progress * (ruler.parentElement.clientHeight - ruler.offsetHeight)}px`;
+    ruler.parentElement.style.backgroundPositionY = `${-root.scrollTop / 7}px`;
   }
   function animate(now) {
     frame = 0;
     if (!active) return;
-    const a = active;
-    a.destination = clamp(a.destination, 0, maxScroll(a.el));
-    if (!a.segment) {
-      const from = a.el.scrollTop;
-      if (Math.abs(from - a.destination) < 1) {
-        active = null;
-        return;
-      }
-      const direction = Math.sign(a.destination - from);
-      const nextGrid =
-        direction > 0
-          ? (Math.floor(from / step) + 1) * step
-          : (Math.ceil(from / step) - 1) * step;
-      const to =
-        direction > 0
-          ? Math.min(nextGrid, a.destination)
-          : Math.max(nextGrid, a.destination);
-      a.segment = { from, to, start: now };
-    }
-    const { from, to, start } = a.segment;
-    const progress = motionAllowed()
-      ? Math.min(1, (now - start) / (a.native ? 160 : 110))
-      : 1;
-    scroll(a.el, from + (to - from) * ease(progress));
+    const { el, from, start } = active;
+    const to = clamp(active.to, 0, maxScroll(el));
+    const progress = motionAllowed() ? Math.min(1, (now - start) / 140) : 1;
+    scroll(el, from + (to - from) * ease(progress));
     rulerPosition();
     if (progress === 1) {
-      finishTick(a.el, from, to);
-      a.segment = null;
-      if (Math.abs(a.el.scrollTop - a.destination) < 1) {
-        active = null;
-        return;
-      }
+      engine.sfx("clack");
+      active = null;
+      return;
     }
     frame = requestAnimationFrame(animate);
   }
-  function move(el, destination, native = false) {
-    if (active?.el !== el) active = { el, destination, segment: null, native };
-    else {
-      const direction = Math.sign(destination - el.scrollTop);
-      if (
-        active.segment &&
-        Math.sign(active.segment.to - el.scrollTop) !== direction
-      )
-        active.segment = null;
-      active.destination = destination;
-    }
-    if (!frame) frame = requestAnimationFrame(animate);
-  }
   function stop() {
     active = null;
-    remainder = 0;
     cancelAnimationFrame(frame);
     frame = 0;
-    clearTimeout(nativeTimer);
-    nativeTarget = null;
-    nativeMoved = false;
+    clearTimeout(timer);
+    gesture = null;
   }
   function scrollable(target, direction) {
     for (let el = target; el && el !== document.body; el = el.parentElement) {
@@ -111,6 +69,29 @@ function initScroll(engine, motionAllowed) {
     }
     return root;
   }
+  function begin(el) {
+    if (active) stop();
+    clearTimeout(timer);
+    if (gesture?.el !== el)
+      gesture = { el, moved: false, tick: Math.floor(el.scrollTop / step) };
+  }
+  function settle() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (touching || !gesture?.moved || !enabled()) return;
+      const { el } = gesture;
+      gesture = null;
+      const from = el.scrollTop;
+      const to = clamp(Math.round(from / step) * step, 0, maxScroll(el));
+      if (Math.abs(to - from) <= 1) {
+        engine.sfx("clack");
+        return;
+      }
+      active = { el, from, to, start: performance.now() };
+      frame = requestAnimationFrame(animate);
+    }, 160);
+  }
+  // Keep native wheel velocity and touch inertia; only the resting position snaps.
   document.addEventListener(
     "wheel",
     (event) => {
@@ -119,77 +100,51 @@ function initScroll(engine, motionAllowed) {
         event.ctrlKey ||
         event.metaKey ||
         Math.abs(event.deltaX) > Math.abs(event.deltaY) ||
-        event.target.closest("input,textarea,select,#rotary-knob,.transport")
+        event.target.closest("input,textarea,select,[role=slider],.transport")
       )
         return;
-      const delta =
-        event.deltaY *
-        (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
-      if (!delta) return;
-      const el = scrollable(event.target, Math.sign(delta));
+      if (!event.deltaY) return;
+      const el = scrollable(event.target, Math.sign(event.deltaY));
       if (maxScroll(el) <= 0) return;
-      event.preventDefault();
-      clearTimeout(nativeTimer);
-      const now = performance.now();
-      if (now - lastWheel > 180 || Math.sign(remainder) !== Math.sign(delta))
-        remainder = 0;
-      lastWheel = now;
-      remainder += delta;
-      const ticks = Math.trunc(remainder / 36);
-      if (!ticks) return;
-      remainder -= ticks * 36;
-      const origin = active?.el === el ? active.destination : el.scrollTop;
-      const destination = clamp(
-        Math.round(origin / step) * step + clamp(ticks, -5, 5) * step,
-        0,
-        maxScroll(el),
-      );
-      if (Math.abs(destination - el.scrollTop) > 1) move(el, destination);
+      begin(el);
+      settle();
     },
-    { passive: false },
+    { passive: true },
   );
-  function settleNative() {
-    clearTimeout(nativeTimer);
-    nativeTimer = setTimeout(() => {
-      if (touching || !nativeTarget || !nativeMoved || !enabled()) return;
-      const current = nativeTarget;
-      nativeTarget = null;
-      nativeMoved = false;
-      const to = clamp(
-        Math.round(current.scrollTop / step) * step,
-        0,
-        maxScroll(current),
-      );
-      if (Math.abs(to - current.scrollTop) > 1) move(current, to, true);
-      else engine.sfx("clack");
-    }, 140);
-  }
   document.addEventListener(
     "scroll",
     (event) => {
       rulerPosition();
-      if (!nativeTarget || active || !enabled()) return;
+      if (!gesture || active || !enabled()) return;
       const el = event.target === document ? root : event.target;
-      if (el !== nativeTarget && nativeTarget !== root) return;
-      nativeTarget = el;
-      nativeMoved = true;
-      settleNative();
+      if (el !== gesture.el) begin(el);
+      gesture.moved = true;
+      const tick = Math.floor(el.scrollTop / step);
+      if (tick !== gesture.tick) engine.sfx("clack");
+      gesture.tick = tick;
+      settle();
     },
     true,
   );
   document.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("#rotary-knob,input,button,a,dialog")) return;
+    if (
+      !enabled() ||
+      event.target.closest(
+        "[role=slider],input,textarea,select,dialog,.transport",
+      )
+    )
+      return;
     stop();
     touching = true;
-    nativeTarget = scrollable(event.target, 1);
+    begin(scrollable(event.target, 1));
   });
   document.addEventListener("pointerup", () => {
     touching = false;
-    settleNative();
+    settle();
   });
   document.addEventListener("pointercancel", () => {
     touching = false;
-    settleNative();
+    settle();
   });
   document.addEventListener("keydown", (event) => {
     if (event.target.closest("input,textarea,select,button,[role=slider]"))
@@ -200,11 +155,12 @@ function initScroll(engine, motionAllowed) {
       )
     ) {
       stop();
-      nativeTarget = root;
+      begin(scrollable(event.target, event.key.includes("Up") ? -1 : 1));
     }
   });
   document.addEventListener("modulechange", stop);
   window.addEventListener("resize", rulerPosition);
+  new ResizeObserver(rulerPosition).observe(document.body);
   rulerPosition();
 }
 
@@ -267,7 +223,7 @@ function initRotary(engine, motionAllowed) {
   function feedback(step) {
     const direction = Math.sign(step - sounded);
     for (let cursor = sounded; cursor !== step; cursor += direction) {
-      engine.sfx("clack");
+      engine.sfx("rotaryclack");
       burst();
       revolution += direction;
       if (Math.abs(revolution) >= 24) {

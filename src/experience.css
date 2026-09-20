@@ -274,26 +274,27 @@ body.boot-visible .transport {
 }
 .scroll-ruler {
   position: fixed;
-  right: 4px;
+  right: max(4px, env(safe-area-inset-right));
   top: 18%;
   height: 52%;
-  width: 9px;
+  width: 12px;
   z-index: 40;
   pointer-events: none;
   background: repeating-linear-gradient(
-    0deg,
-    transparent 0 7px,
-    #84969477 7px 8px
-  );
+      0deg,
+      transparent 0 7px,
+      #a7bfbbb3 7px 8px
+    )
+    #152327cc;
+  border-left: 1px solid #20363c;
 }
 .scroll-ruler i {
   position: absolute;
-  width: 9px;
-  height: 3px;
+  width: 100%;
+  height: 4px;
   background: #d3bb99;
   top: 0;
   box-shadow: 0 0 5px #c5b18977;
-  transition: top 0.09s linear;
 }
 body.boot-visible .scroll-ruler {
   display: none;
@@ -322,6 +323,161 @@ body.boot-visible .scroll-ruler {
 .playground-heading .micro {
   font-size: 8px;
   color: #9fafaf;
+}
+.toy-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 24px;
+  padding: 24px 0 0;
+}
+.toy-heading h3 {
+  font:
+    16px "Barlow Condensed",
+    sans-serif;
+  color: #c1cfca;
+  margin: 0;
+}
+.toy-heading > span {
+  font: 8px var(--mono);
+  color: #9fafaf;
+}
+.fader-module {
+  margin-top: 34px;
+  border-top: 1px solid #687d7d;
+  background: #233034;
+}
+.fader-stage {
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+  padding: 32px 32px 58px;
+}
+#neuraa-slider {
+  --target: 50%;
+  --follower: 50%;
+  position: relative;
+  width: min(100%, 700px);
+  height: 160px;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline-offset: 8px;
+}
+.fader-travel {
+  position: absolute;
+  inset: 0 24px;
+}
+.fader-scale {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 27px;
+  height: 15px;
+  background: repeating-linear-gradient(
+    to right,
+    #8ba49d 0 1px,
+    transparent 1px 5%
+  );
+  border-bottom: 1px solid #587472;
+}
+.fader-rail {
+  position: absolute;
+  top: 75px;
+  left: -14px;
+  right: -14px;
+  height: 10px;
+  border-radius: 3px;
+  background: #101d22;
+  border: 1px solid #5e7777;
+  box-shadow:
+    inset 0 3px 5px #081114,
+    0 1px #a3b4ac22;
+}
+.fader-tether {
+  position: absolute;
+  top: 79px;
+  height: 2px;
+  left: var(--span-start);
+  width: var(--span-width);
+  background: #bda97a;
+  box-shadow: 0 0 9px #ddc08e44;
+}
+.fader-target,
+.fader-projection {
+  position: absolute;
+  top: 51px;
+  width: 40px;
+  height: 58px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.fader-target {
+  left: var(--target);
+  z-index: 2;
+  border: 1px solid #d3d9c6;
+  background: linear-gradient(
+    90deg,
+    #516465,
+    #aebbb0 17%,
+    #617777 24%,
+    #8b9f96 76%,
+    #4b6263 85%,
+    #263c3e
+  );
+  box-shadow:
+    0 5px 10px #0c181ccc,
+    inset 0 1px #e0e4cf;
+}
+.fader-target::before {
+  content: "";
+  position: absolute;
+  inset: 9px 10px;
+  background: repeating-linear-gradient(
+    to bottom,
+    #c4cabc66 0 1px,
+    #24383988 1px 3px
+  );
+}
+.fader-target i,
+.fader-projection i {
+  position: absolute;
+  inset: 26px 0 auto;
+  height: 4px;
+  background: #e6c188;
+  box-shadow: 0 1px #19262b;
+}
+.fader-projection {
+  left: var(--follower);
+  border: 1px solid #93d1d0;
+  background: #527a7866;
+  box-shadow:
+    0 0 14px #87ccc52e,
+    inset 0 0 12px #91d4ca33;
+}
+.fader-projection i {
+  background: #a0e0d7;
+}
+.fader-end {
+  position: absolute;
+  top: 131px;
+  font: 9px var(--mono);
+  color: #a7bdb2;
+  transform: translateX(-50%);
+}
+.fader-left {
+  left: 0;
+}
+.fader-right {
+  left: 100%;
+}
+#neuraa-slider.dragging .fader-target {
+  box-shadow:
+    0 5px 10px #0c181ccc,
+    0 0 10px #e0c99b44;
 }
 .rotary-stage {
   position: relative;
@@ -668,11 +824,11 @@ body.boot-visible .scroll-ruler {
     --dock-space: 182px;
   }
   .scroll-ruler {
-    right: 1px;
-    width: 5px;
-  }
-  .scroll-ruler i {
-    width: 5px;
+    right: max(3px, env(safe-area-inset-right));
+    width: 11px;
+    top: 18dvh;
+    height: 48dvh;
+    z-index: 52;
   }
   .playground-heading {
     margin: 0 14px;
@@ -690,6 +846,16 @@ body.boot-visible .scroll-ruler {
   }
   .rotary-assembly {
     transform: scale(0.9);
+  }
+  .toy-heading {
+    margin-inline: 16px;
+  }
+  .fader-stage {
+    min-height: 260px;
+    padding: 28px 14px 40px;
+  }
+  .fader-module {
+    margin-top: 24px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

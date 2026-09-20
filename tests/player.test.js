@@ -10,14 +10,16 @@ import {
 class FakeParam {
   constructor(value) {
     this.value = value;
+    this.ramps = [];
   }
   cancelAndHoldAtTime() {}
   cancelScheduledValues() {}
   setValueAtTime(value) {
     this.value = value;
   }
-  linearRampToValueAtTime(value) {
+  linearRampToValueAtTime(value, time) {
     this.value = value;
+    this.ramps.push({ value, time });
   }
   setTargetAtTime(value) {
     this.value = value;
@@ -43,12 +45,15 @@ class FakeBufferSource extends FakeNode {
     this.started = 0;
     this.stopped = 0;
     this.onended = null;
+    this.playbackRate = new FakeParam(1);
   }
-  start() {
+  start(...args) {
     this.started += 1;
+    this.startArgs = args;
   }
-  stop() {
+  stop(time) {
     this.stopped += 1;
+    this.stopTime = time;
   }
 }
 
@@ -566,4 +571,82 @@ test("rapid preselection retriggers every decoded request without a cooldown", a
   assert.equal(context.sources.length, 8);
   assert.equal(context.sources.at(-1).started, 1);
   assert.equal(context.sources.filter((source) => source.stopped).length, 7);
+});
+
+test("fader sound maps follower position to the correct directional source offset", async () => {
+  const { engine } = makeEngine();
+  await engine.unlock();
+  engine.buffers.neuraasliderto = { duration: 8 / 3 };
+  engine.buffers.neuraasliderfrom = { duration: 8 / 3 };
+  engine.updateSliderSound(0.25, 1, 0.375, 0.08, 0.2);
+  const right = engine.sliderVoice;
+  assert.equal(right.name, "neuraasliderto");
+  assert.equal(right.source.startArgs[1], 2 / 3);
+  assert.equal(right.source.playbackRate.value, 1);
+  engine.updateSliderSound(0.25, 0, 0.375, 0.08, 0.2);
+  assert.equal(engine.sliderVoice.name, "neuraasliderfrom");
+  assert.equal(engine.sliderVoice.source.startArgs[1], 2);
+  assert.equal(right.gain.gain.ramps.at(-1).value, 0);
+  assert.equal(right.gain.gain.ramps.at(-1).time, 0.045);
+  assert.equal(right.source.stopTime, 0.05);
+});
+
+test("fader audio runs continuously at fixed speed while the target moves", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.buffers.neuraasliderto = { duration: 8 / 3 };
+  engine.updateSliderSound(0.1, 1, 0.375, 0.08, 0.2);
+  const voice = engine.sliderVoice;
+  context.currentTime = 0.5;
+  engine.updateSliderSound(0.2875, 0.8, 0.375, 0.08, 0.2);
+  assert.equal(engine.sliderVoice, voice);
+  assert.equal(voice.source.started, 1);
+  assert.equal(voice.source.stopped, 0);
+});
+
+test("fader fades with proximity and is silent before the handles overlap", async () => {
+  const { engine } = makeEngine();
+  await engine.unlock();
+  engine.buffers.neuraasliderto = { duration: 8 / 3 };
+  engine.updateSliderSound(0.3, 1, 0.375, 0.08, 0.2);
+  const voice = engine.sliderVoice;
+  assert.equal(voice.gain.gain.value, 0.24);
+  engine.updateSliderSound(0.3, 0.44, 0.375, 0.08, 0.2);
+  assert.ok(voice.gain.gain.value > 0 && voice.gain.gain.value < 0.24);
+  engine.updateSliderSound(0.3, 0.36, 0.375, 0.08, 0.2);
+  assert.equal(engine.sliderVoice, null);
+  assert.equal(voice.gain.gain.value, 0);
+  assert.equal(voice.source.stopTime, 0.05);
+});
+
+test("fader audio survives UI clacks and stops with SFX off", async () => {
+  const { engine } = makeEngine();
+  await engine.unlock();
+  engine.buffers.neuraasliderto = { duration: 8 / 3 };
+  engine.buffers.rotaryclack = { duration: 1 / 6 };
+  engine.updateSliderSound(0, 1, 0.375, 0.08, 0.2);
+  const voice = engine.sliderVoice;
+  await engine.sfx("rotaryclack");
+  assert.equal(voice.source.stopped, 0);
+  engine.sfxEnabled = false;
+  engine.stopSfx();
+  engine.updateSliderSound(0.2, 1, 0.375, 0.08, 0.2);
+  assert.equal(engine.sliderVoice, null);
+  assert.equal(voice.source.stopped, 1);
+});
+
+test("fader decoding cannot start stale sound after a stop", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = { neuraasliderto: new ArrayBuffer(8) };
+  let finish;
+  context.decodeAudioData = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  engine.updateSliderSound(0, 1, 0.375, 0.08, 0.2);
+  engine.stopSliderSound();
+  finish({ duration: 8 / 3 });
+  await Promise.resolve();
+  assert.equal(context.sources.length, 0);
 });

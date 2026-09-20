@@ -125,6 +125,9 @@ const sfxReady = engine.preloadSfx(
 engine.preloadSfx({
   preselect: asset("media/preselect.wav"),
   clack: asset("media/clack.wav"),
+  rotaryclack: asset("media/rotaryclack.wav"),
+  neuraasliderto: asset("media/neuraasliderto.wav"),
+  neuraasliderfrom: asset("media/neuraasliderfrom.wav"),
   round: asset("media/round.wav"),
 });
 video.src = asset(manifest.videos[0].src);

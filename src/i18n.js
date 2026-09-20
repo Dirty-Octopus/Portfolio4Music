@@ -58,6 +58,7 @@ const content = {
   youtubePlays: ["YouTube 单曲播放", "YOUTUBE / TOP RELEASE"],
   douyinLikes: ["抖音累计获赞", "DOUYIN / TOTAL LIKES"],
   playground: ["有趣的东西", "OFF THE RECORD"],
+  rotary: ["旋钮", "ROTARY"],
 };
 
 // Explicit selectors keep translation separate from playback and icon markup.
@@ -216,6 +217,7 @@ const attributes = {
   "#system-close": ["关闭系统控制台", "Close system controls"],
   "#softness": content.softness,
   "#rotary-knob": ["旋钮", "Rotary dial"],
+  "#neuraa-slider": ["滑块目标", "Fader target"],
   ".scene-corner > div": ["画面处理", "Display processing"],
 };
 

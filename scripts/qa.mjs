@@ -544,6 +544,8 @@ async function main() {
   const knob = await boxOf('#rotary-knob');
   const cx = knob.x + knob.w / 2, cy = knob.y + knob.h / 2;
   const roundsBefore = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length`);
+  const rotaryBefore = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length`);
+  const scrollBeforeRotary = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx + 55, y: cy, button: 'left', buttons: 1, clickCount: 1 });
   for (let i = 1; i <= 48; i++) {
     const angle = i / 48 * Math.PI * 2;
@@ -554,7 +556,7 @@ async function main() {
   await sleepMs(350);
   check('one full rotary turn triggers one round accent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length === ${roundsBefore + 1}`));
   check('rotary emits actual canvas particles', await evaluate(`(() => { const c = document.querySelector('#rotary-particles'); const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; return d.some((v,i) => i % 4 === 3 && v > 0); })()`));
-  check('rotary detents trigger clack', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length >= 24`));
+  check('rotary uses its dedicated clack without the scroll sound', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length >= ${rotaryBefore + 24} && window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length === ${scrollBeforeRotary}`));
   await shot('08-playground');
   await evaluate(`document.querySelector('#rotary-knob').focus()`);
   await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 });
@@ -564,12 +566,56 @@ async function main() {
   check('rotary eases through intermediate angles', rotaryDuring > rotaryAtStart && rotaryDuring < 15);
   await sleepMs(550);
   check('rotary supports keyboard detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 15`));
+  console.log('· directional fader and projection');
+  check('fader occupies its own module below the rotary', await evaluate(`document.querySelector('.fader-module').getBoundingClientRect().top > document.querySelector('.rotary-stage').getBoundingClientRect().bottom + 20`));
+  const fader = await boxOf('.fader-travel');
+  const setFader = async (value) => {
+    const x = fader.x + fader.w * value, y = fader.y + 80;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0 });
+  };
+  const faderState = () => evaluate(`(() => { const s = document.querySelector('#neuraa-slider'); return { target: parseFloat(s.style.getPropertyValue('--target'))/100, follower: parseFloat(s.style.getPropertyValue('--follower'))/100, time: performance.now() }; })()`);
+  await setFader(.95);
+  await sleepMs(90);
+  const faderStart = await faderState();
+  check('fader target moves ahead while its projection follows', faderStart.target > .9 && faderStart.follower > .5 && faderStart.follower < .7);
+  const rightSound = await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).at(-1)`);
+  check('fader audio starts at its projection position at original pitch', rightSound && rightSound.offset > 1.3 && rightSound.offset < 1.55 && Math.abs(rightSound.rate - 1) < .001);
+  await sleepMs(200);
+  const faderMiddle = await faderState();
+  await sleepMs(200);
+  const faderEnd = await faderState();
+  const speedA = (faderMiddle.follower-faderStart.follower)*1000/(faderMiddle.time-faderStart.time);
+  const speedB = (faderEnd.follower-faderMiddle.follower)*1000/(faderEnd.time-faderMiddle.time);
+  check('projection maintains constant speed instead of easing toward its target', Math.abs(speedA-.375)<.06 && Math.abs(speedB-.375)<.06, `${speedA.toFixed(3)} / ${speedB.toFixed(3)}`);
+  await shot('16-fader-desktop');
+  const beforeReverse = await faderState();
+  await setFader(.05);
+  await sleepMs(70);
+  const reverseSound = await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).at(-1)`);
+  check('fader reverses with the mirrored source offset', reverseSound && Math.abs(reverseSound.offset - (1-beforeReverse.follower)*8/3)<.12);
+  await waitFor(`Math.abs(parseFloat(document.querySelector('#neuraa-slider').style.getPropertyValue('--follower'))-5)<.1`);
+  check('fader audio is stopped when the projection reaches its target', await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).every(s => s.stoppedAt || s.endedAt)`));
   await evaluate(`window.scrollTo({top:0,behavior:'instant'}); document.activeElement.blur()`);
   const scrollClacks = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`);
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 72 });
   await sleepMs(450);
   check('wheel scrolling lands on a mechanical detent', await evaluate(`scrollY > 0 && scrollY % 56 === 0`));
   check('scroll detents produce their own clack feedback', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length > ${scrollClacks}`));
+  await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
+  await sleepMs(100);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 60 });
+  await sleepMs(100);
+  const slowScroll = await evaluate(`scrollY`);
+  await sleepMs(350);
+  await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
+  await sleepMs(100);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 480 });
+  await sleepMs(100);
+  const fastScroll = await evaluate(`scrollY`);
+  check('scroll velocity responds to wheel input without a fixed detent speed', fastScroll > slowScroll * 4 && fastScroll > 300, `${slowScroll}px / ${fastScroll}px`);
+  await sleepMs(400);
+  check('fast scrolling still settles on a detent', await evaluate(`scrollY % 56 === 0`));
   check('screen noise is nonblank', await evaluate(`document.querySelector('#screen-noise').getContext('2d').getImageData(0,0,1,1).data[3] === 255`));
   await click('#system-open');
   await sleepMs(1000);
@@ -649,6 +695,7 @@ async function main() {
   await scrollTo('.masthead');
   await sleepMs(300);
   check('English layout fits a 320px screen', await evaluate(`document.documentElement.scrollWidth <= 321`));
+  check('mobile ruler is visible and has readable tick width', await evaluate(`(() => { const r = document.querySelector('.scroll-ruler').getBoundingClientRect(); return r.width >= 10 && r.right <= innerWidth && r.top > 0 && r.bottom < innerHeight && getComputedStyle(document.querySelector('.scroll-ruler')).display !== 'none'; })()`));
   await shot('11-mobile-320-en');
   for (const view of ['audio', 'video', 'fun']) {
     await click(`[data-nav="${view}"]`);
@@ -672,6 +719,26 @@ async function main() {
   check('touch rotates the dial without scrolling the page', await evaluate(`
     Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === (${beforeTouch}+90)%360 && Math.abs(scrollY-${scrollBeforeTouch}) < 2
   `));
+  const mobileFader = await boxOf('.fader-travel');
+  const faderScrollY = await evaluate(`scrollY`);
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:mobileFader.x+mobileFader.w*.1,y:mobileFader.y+80}]});
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:mobileFader.x+mobileFader.w*.9,y:mobileFader.y+80}]});
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+  await sleepMs(120);
+  check('touch controls the fader without scrolling and leaves a trailing projection', await evaluate(`Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow')) >= 89 && parseFloat(document.querySelector('#neuraa-slider').style.getPropertyValue('--follower')) < 70 && Math.abs(scrollY-${faderScrollY}) < 2`));
+  await shot('17-fader-mobile');
+  await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
+  await sleepMs(150);
+  const rulerBefore = await evaluate(`document.querySelector('.scroll-ruler i').style.top`);
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:150,y:440}]});
+  for (let i=1; i<=8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:150,y:440-i*27}]});
+    await sleepMs(30);
+  }
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+  await sleepMs(1400);
+  check('mobile swipe retains native movement then snaps to a detent', await evaluate(`scrollY > 0 && scrollY % 56 === 0`));
+  check('mobile scroll updates the visible ruler', await evaluate(`document.querySelector('.scroll-ruler i').style.top !== ${JSON.stringify(rulerBefore)}`));
 
   console.log('· direct English entry and OS reduced motion');
   await cdp.send('Emulation.setEmulatedMedia', {
@@ -731,7 +798,7 @@ const qaHook = `
       const stop = source.stop.bind(source);
       let record;
       source.start = (...args) => {
-        record = { at: performance.now(), duration: source.buffer ? source.buffer.duration : 0, loop: source.loop };
+        record = { at: performance.now(), duration: source.buffer ? source.buffer.duration : 0, loop: source.loop, offset: args[1] || 0, rate: source.playbackRate.value };
         stats.sfxStarts.push(record);
         return start(...args);
       };
