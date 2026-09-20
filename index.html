@@ -286,23 +286,23 @@
               <span>VISUAL TREATMENT</span>
               <div role="group" aria-label="画面处理">
                 <button
-                  class="treatment-button"
-                  data-treatment="mono"
-                  aria-pressed="false"
-                >
-                  GRAPHITE</button
-                ><button
                   class="treatment-button active"
                   data-treatment="duotone"
                   aria-pressed="true"
                 >
-                  OXIDE</button
+                  BLUE</button
                 ><button
                   class="treatment-button"
                   data-treatment="halftone"
                   aria-pressed="false"
                 >
-                  PHOSPHOR
+                  PRIMARY</button
+                ><button
+                  class="treatment-button"
+                  data-treatment="mono"
+                  aria-pressed="false"
+                >
+                  GRAYSCALE
                 </button>
               </div>
             </div>
@@ -492,14 +492,6 @@
                   role="group"
                   aria-label="音乐分类"
                 ></div>
-                <div class="catalog-bottom">
-                  <div class="mini-signal" aria-hidden="true">
-                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
-                    ><i></i><i></i><i></i><i></i>
-                  </div>
-                  <p>SOUND<br />WITHOUT<br />BOUNDARIES.</p>
-                  <small>从旋律，到完整的声音世界。</small>
-                </div>
               </aside>
               <section
                 class="audio-library"
@@ -760,12 +752,28 @@
         <div class="system-section">
           <h3>DISPLAY PROCESSING <span>画面处理</span></h3>
           <div class="system-treatments">
-            <button data-treatment="mono" aria-pressed="false">
-              01 / GRAPHITE</button
-            ><button data-treatment="duotone" aria-pressed="true">
-              02 / OXIDE</button
+            <button data-treatment="duotone" aria-pressed="true">
+              <span class="theme-swatches" aria-hidden="true"
+                ><i style="--swatch: #142330"></i
+                ><i style="--swatch: #4d8fb8"></i
+                ><i style="--swatch: #9ac9e2"></i
+              ></span>
+              <span data-i18n="themeBlue">经典蓝</span></button
             ><button data-treatment="halftone" aria-pressed="false">
-              03 / PHOSPHOR
+              <span class="theme-swatches" aria-hidden="true"
+                ><i style="--swatch: #080808"></i
+                ><i style="--swatch: #ff302b"></i
+                ><i style="--swatch: #fff100"></i
+                ><i style="--swatch: #164eff"></i
+              ></span>
+              <span data-i18n="themePrimary">高对比</span></button
+            ><button data-treatment="mono" aria-pressed="false">
+              <span class="theme-swatches" aria-hidden="true"
+                ><i style="--swatch: #202020"></i
+                ><i style="--swatch: #898989"></i
+                ><i style="--swatch: #eeeeee"></i
+              ></span>
+              <span data-i18n="themeMono">灰阶</span>
             </button>
           </div>
           <p>只处理界面图像，视频保留原始色彩。</p>
@@ -830,6 +838,12 @@
         <div class="system-log">
           <span>LAST ACTION</span>
           <p id="last-action">EXPERIENCE INITIALIZED</p>
+        </div>
+        <div class="system-section reset-section">
+          <button id="settings-reset">
+            <span data-icon="arrow-counter-clockwise"></span
+            ><span data-i18n="resetSettings">重置所有设置</span>
+          </button>
         </div>
       </div>
     </dialog>

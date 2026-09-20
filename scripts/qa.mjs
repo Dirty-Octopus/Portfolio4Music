@@ -1605,6 +1605,41 @@ async function main() {
   await click("#system-close");
   await waitFor(`!document.querySelector('#system-dialog').open`);
 
+  console.log("· reset all preferences on mobile through the CRT lens");
+  await click("#system-open");
+  await evaluate(`
+    localStorage.setItem('qa-unrelated', 'keep');
+    document.querySelector('#system-dialog [data-treatment="halftone"]').click();
+    document.querySelector('#softness').value = '0';
+    document.querySelector('#softness').dispatchEvent(new Event('input', {bubbles:true}));
+    document.querySelector('#volume').value = '.2';
+    document.querySelector('#volume').dispatchEvent(new Event('input', {bubbles:true}));
+    if(document.querySelector('#system-sfx').getAttribute('aria-checked')==='true') document.querySelector('#system-sfx').click();
+    if(document.querySelector('#system-bgm').getAttribute('aria-checked')==='true') document.querySelector('#system-bgm').click();
+    document.querySelector('#crt-toggle').click();
+  `);
+  await click("#settings-reset");
+  await sleepMs(700);
+  check(
+    "reset restores every preference and preserves unrelated storage",
+    await evaluate(`
+    document.body.dataset.treatment==='duotone' &&
+    !document.body.classList.contains('motion-off') &&
+    !document.documentElement.classList.contains('crt-mode') &&
+    document.documentElement.lang==='zh-CN' &&
+    document.querySelector('#softness').value==='0.35' &&
+    document.querySelector('#volume').value==='0.65' &&
+    document.querySelector('#loop').getAttribute('aria-pressed')==='false' &&
+    document.querySelector('.transport').classList.contains('collapsed') &&
+    ['#system-sfx','#system-bgm'].every(s=>document.querySelector(s).getAttribute('aria-checked')==='true') &&
+    localStorage.getItem('portfolio-theme')===null && localStorage.getItem('portfolio-crt')===null &&
+    localStorage.getItem('qa-unrelated')==='keep'
+  `),
+  );
+  await shot("25-mobile-reset");
+  await click("#system-close");
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+
   console.log("· direct English entry and OS reduced motion");
   await cdp.send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
@@ -1633,6 +1668,102 @@ async function main() {
 
   await cdp.send("Emulation.clearDeviceMetricsOverride");
   await sleepMs(300);
+
+  console.log("· revised palettes, file stack and depth parallax");
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+  });
+  await click('[data-nav="overview"]');
+  await waitFor(
+    `document.querySelector('.shell').dataset.view==='overview' && !document.querySelector('.workspace').inert`,
+  );
+  for (const [theme, color] of [
+    ["duotone", "rgb(36, 61, 80)"],
+    ["halftone", "rgb(17, 17, 17)"],
+    ["mono", "rgb(51, 51, 51)"],
+  ]) {
+    await click(`.scene-corner [data-treatment="${theme}"]`);
+    await sleepMs(900);
+    check(
+      `${theme} palette reaches the profile surface`,
+      await evaluate(
+        `getComputedStyle(document.querySelector('.biography')).backgroundColor===${JSON.stringify(color)}`,
+      ),
+    );
+    await shot(`26-theme-${theme}`);
+  }
+  await click('.scene-corner [data-treatment="duotone"]');
+  const heroBox = await boxOf(".hero");
+  const hoverHero = async (fraction) => {
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: heroBox.x + heroBox.w * fraction,
+      y: heroBox.y + heroBox.h * 0.35,
+    });
+    await sleepMs(650);
+    return evaluate(
+      `parseFloat(getComputedStyle(document.querySelector('.strata-front')).translate)`,
+    );
+  };
+  const parallaxLeft = await hoverHero(0.15);
+  const parallaxRight = await hoverHero(0.85);
+  check(
+    "banner foreground has a clear pointer depth shift",
+    Math.abs(parallaxRight - parallaxLeft) > 60,
+    `${parallaxLeft} / ${parallaxRight}`,
+  );
+  await evaluate("scrollTo(0,180)");
+  await sleepMs(700);
+  check(
+    "banner depth responds to scrolling",
+    await evaluate(
+      `Number(document.querySelector('.hero').style.getPropertyValue('--parallax-scroll'))>10`,
+    ),
+  );
+  await shot("27-profile-parallax");
+  await click('[data-nav="audio"]');
+  await waitFor(
+    `document.querySelector('.shell').dataset.view==='audio' && !document.querySelector('.workspace').inert`,
+  );
+  check(
+    "removed sidebar slogan leaves no content block",
+    await evaluate(`!document.querySelector('.catalog-bottom')`),
+  );
+  const fileBox = await boxOf('[data-category="cinematic"]');
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: fileBox.x + fileBox.w * 0.5,
+    y: fileBox.y + fileBox.h * 0.4,
+  });
+  await sleepMs(650);
+  check(
+    "file tabs overlap and lift forward with no clipped edge marker",
+    await evaluate(`
+    (()=>{const b=document.querySelector('[data-category="cinematic"]'),p=b.previousElementSibling,s=getComputedStyle(b);
+    return s.zIndex==='3' && new DOMMatrix(s.transform).m41>=7.9 && b.getBoundingClientRect().top<p.getBoundingClientRect().bottom && getComputedStyle(b,'::after').display==='none' && b.offsetHeight===43;})()
+  `),
+  );
+  await shot("28-audio-file-stack");
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width: 320,
+    height: 740,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await sleepMs(700);
+  check(
+    "mobile file stack stays compact without page overflow",
+    await evaluate(
+      `document.documentElement.scrollWidth===320 && document.querySelector('.filter').offsetHeight===32`,
+    ),
+  );
+  await shot("29-mobile-file-stack");
 
   check(
     "no uncaught page errors",

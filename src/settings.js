@@ -20,7 +20,9 @@ export function initSettings({ motionAllowed, onOpen }) {
   function destination() {
     const source = trigger.getBoundingClientRect();
     const width = Math.min(408, innerWidth - 28);
-    const height = Math.min(502, innerHeight - 32);
+    // Leave enough inner room for the reset control so language changes do not
+    // move the settings content through an automatic scroll offset.
+    const height = Math.min(560, innerHeight - 32);
     return {
       width,
       height,

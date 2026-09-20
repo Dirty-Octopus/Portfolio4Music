@@ -2,6 +2,7 @@
 import { t, trackTitle } from "./i18n.js";
 import { scrambleText } from "./text-transition.js";
 import { initSettings } from "./settings.js";
+import { initParallax } from "./parallax.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const labels = {
@@ -163,7 +164,9 @@ function processArtwork(value) {
     el.setAttribute("aria-pressed", String(active));
     el.classList.toggle("active", active);
   });
-  logAction(`${t("主题", "THEME")} / ${value.toUpperCase()}`);
+  logAction(
+    `${t("主题", "THEME")} / ${{ duotone: "BLUE", halftone: "PRIMARY", mono: "GRAYSCALE" }[value]}`,
+  );
 }
 function inspectTrack(track) {
   if (!track) return;
@@ -211,6 +214,7 @@ export function initInterface(config) {
       document.getAnimations().forEach((animation) => animation.cancel());
       settleTransition();
     }
+    document.dispatchEvent(new Event("motionchange"));
   }
   updateMotion();
   motionPreference.addEventListener("change", updateMotion);
@@ -242,6 +246,20 @@ export function initInterface(config) {
       `${event.target.value}px`,
     );
     $("#softness-value").textContent = Number(event.target.value).toFixed(2);
+  });
+  $("#settings-reset").addEventListener("click", () => {
+    processArtwork("duotone");
+    try {
+      localStorage.removeItem("portfolio-theme");
+    } catch {
+      /* Optional preference. */
+    }
+    document.body.classList.remove("motion-off");
+    $("#softness").value = "0.35";
+    $("#softness").dispatchEvent(new Event("input", { bubbles: true }));
+    updateMotion();
+    document.dispatchEvent(new Event("settingsreset"));
+    logAction(t("已恢复默认设置", "DEFAULT SETTINGS RESTORED"));
   });
   $("#theater-toggle").addEventListener("click", () =>
     changeView($(".shell").dataset.view === "video" ? "overview" : "video"),
@@ -286,27 +304,5 @@ export function initInterface(config) {
       `${opening ? t("收起文件信息", "Hide file details") : t("展开文件信息", "View file details")} <span>${opening ? "−" : "+"}</span>`;
     logAction(t("声音档案 / 已连接", "SONIC ARCHIVE / CONNECTED"));
   });
-  // A light artwork parallax uses direct transforms and returns to rest on exit.
-  const hero = $(".hero"),
-    art = $(".hero-art");
-  let animationFrame = 0;
-  hero.addEventListener("pointermove", (event) => {
-    if (
-      !motionAllowed() ||
-      event.pointerType !== "mouse" ||
-      hero.classList.contains("processing")
-    )
-      return;
-    cancelAnimationFrame(animationFrame);
-    const r = hero.getBoundingClientRect(),
-      x = (event.clientX - r.left) / r.width - 0.5,
-      y = (event.clientY - r.top) / r.height - 0.5;
-    animationFrame = requestAnimationFrame(() => {
-      art.style.transform = `scale(1.06) translate(${x * -9}px,${y * -5}px)`;
-    });
-  });
-  hero.addEventListener("pointerleave", () => {
-    cancelAnimationFrame(animationFrame);
-    art.style.transform = "";
-  });
+  initParallax(motionAllowed);
 }

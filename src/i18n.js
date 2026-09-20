@@ -61,6 +61,10 @@ const content = {
   playground: ["有趣的东西", "OFF THE RECORD"],
   rotary: ["摇把", "WINDOW CRANK"],
   crtLens: ["视角畸变 · 实验性", "CRT LENS · EXPERIMENTAL"],
+  themeBlue: ["经典蓝", "BLUE"],
+  themePrimary: ["高对比", "PRIMARY"],
+  themeMono: ["灰阶", "GRAYSCALE"],
+  resetSettings: ["重置所有设置", "RESET ALL SETTINGS"],
 };
 
 // Explicit selectors keep translation separate from playback and icon markup.
@@ -118,14 +122,6 @@ const markup = {
     "声音版块 <span>06</span>",
     "BOARDS <span>06</span>",
   ],
-  ".catalog-bottom p": [
-    "声音<br>没有边界。",
-    "SOUND<br>WITHOUT<br>BOUNDARIES.",
-  ],
-  ".catalog-bottom > small": [
-    "从旋律，到完整的声音世界。",
-    "From melody to a world of sound.",
-  ],
   ".list-header > span:first-child": ["主题 / 作品", "TOPIC / COMPOSITION"],
   ".list-header > span:nth-child(2)": ["格式", "FORMAT"],
   ".list-header > span:last-child": ["时长", "TIME"],
@@ -177,7 +173,10 @@ const markup = {
     "视觉主题",
     "VISUAL THEME",
   ],
-  ".system-section > p": ["石墨 / 氧化 / 磷光", "GRAPHITE / OXIDE / PHOSPHOR"],
+  ".system-section > p": [
+    "经典蓝 / 高对比 / 灰阶",
+    "BLUE / PRIMARY / GRAYSCALE",
+  ],
   ".system-switch-row:has(#motion-toggle) > span": [
     "界面动画",
     "INTERFACE MOTION",

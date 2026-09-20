@@ -1,5 +1,5 @@
 const SIZE = 192;
-const STRENGTH = 0.018;
+const STRENGTH = 0.042;
 const maps = new Map();
 
 function displacement(width, height) {
@@ -111,6 +111,14 @@ export function initCrtLens(t) {
     }
   }
   control.addEventListener("click", () => setEnabled(!enabled));
+  document.addEventListener("settingsreset", () => {
+    setEnabled(false);
+    try {
+      localStorage.removeItem("portfolio-crt");
+    } catch {
+      /* Optional preference. */
+    }
+  });
   document.addEventListener("languagechange", sync);
   document.addEventListener("fullscreenchange", () => {
     updateMap();

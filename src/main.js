@@ -34,7 +34,9 @@ import expandIcon from "@phosphor-icons/core/assets/regular/arrows-out-simple.sv
 import musicIcon from "@phosphor-icons/core/assets/regular/music-notes.svg?raw";
 import caretUpIcon from "@phosphor-icons/core/assets/regular/caret-up.svg?raw";
 import caretDownIcon from "@phosphor-icons/core/assets/regular/caret-down.svg?raw";
+import resetIcon from "@phosphor-icons/core/assets/regular/arrow-counter-clockwise.svg?raw";
 const icons = {
+  "arrow-counter-clockwise": resetIcon,
   "caret-down": caretDownIcon,
   "caret-up": caretUpIcon,
   "music-notes": musicIcon,
@@ -775,6 +777,24 @@ initInterface({
 });
 initTactileExperience({ engine, motionAllowed });
 initCrtLens(t);
+document.addEventListener("settingsreset", async () => {
+  engine.sfxEnabled = true;
+  engine.bgmEnabled = true;
+  engine.repeat = false;
+  engine.setMuted(false);
+  engine.setVolume(0.65);
+  savedVolume = 0.65;
+  $("#volume").value = "0.65";
+  $("#loop").setAttribute("aria-pressed", "false");
+  $(".transport").classList.add("collapsed");
+  document.body.classList.add("dock-collapsed");
+  setLanguage("zh");
+  syncSoundControls();
+  syncDockLabel();
+  toast(t("已恢复默认设置", "Default settings restored"));
+  await assetsReady;
+  await engine.setBgmEnabled(true);
+});
 
 document.addEventListener("languagechange", () => {
   renderFilters();

@@ -1,17 +1,17 @@
 /* Theme colors belong to the interface; artwork and film retain their own color. */
 body {
-  --ground: #222526;
-  --panel: #2d3334;
-  --panel-low: #252b2d;
-  --panel-high: #3c4647;
-  --edge: #738382;
-  --ink: #e0e4df;
-  --secondary: #b4c0bb;
-  --accent: #cb8074;
-  --accent-ink: #251d1c;
-  --strata-far: #566866;
-  --strata-mid: #97726b;
-  --strata-front: #cb9a86;
+  --ground: #142330;
+  --panel: #243d50;
+  --panel-low: #1a2e3f;
+  --panel-high: #35566d;
+  --edge: #6d92aa;
+  --ink: #dcebf3;
+  --secondary: #a7c6d9;
+  --accent: #83c6ed;
+  --accent-ink: #102b3e;
+  --strata-far: #2e566f;
+  --strata-mid: #4d8fb8;
+  --strata-front: #9ac9e2;
   --line: var(--edge);
   --muted: var(--secondary);
   --oxide: var(--accent);
@@ -22,32 +22,32 @@ body {
     color 0.65s;
 }
 body[data-treatment="mono"] {
-  --ground: #222224;
-  --panel: #343436;
-  --panel-low: #28282b;
-  --panel-high: #48484b;
-  --edge: #818184;
-  --ink: #e7e6df;
-  --secondary: #c2c0b8;
-  --accent: #cfc16f;
-  --accent-ink: #24231a;
-  --strata-far: #535456;
-  --strata-mid: #89898a;
-  --strata-front: #c9c6b8;
+  --ground: #202020;
+  --panel: #333333;
+  --panel-low: #272727;
+  --panel-high: #484848;
+  --edge: #888888;
+  --ink: #eeeeee;
+  --secondary: #bebebe;
+  --accent: #d2d2d2;
+  --accent-ink: #202020;
+  --strata-far: #535353;
+  --strata-mid: #898989;
+  --strata-front: #c9c9c9;
 }
 body[data-treatment="halftone"] {
-  --ground: #202624;
-  --panel: #2c3632;
-  --panel-low: #252d2b;
-  --panel-high: #405047;
-  --edge: #7a9987;
-  --ink: #e4ecce;
-  --secondary: #b3c3ac;
-  --accent: #c4d588;
-  --accent-ink: #232b20;
-  --strata-far: #4d6a59;
-  --strata-mid: #8d9c79;
-  --strata-front: #c8c98f;
+  --ground: #080808;
+  --panel: #111111;
+  --panel-low: #050505;
+  --panel-high: #164eff;
+  --edge: #ffdf00;
+  --ink: #fff100;
+  --secondary: #e8d949;
+  --accent: #fff100;
+  --accent-ink: #080808;
+  --strata-far: #164eff;
+  --strata-mid: #ff302b;
+  --strata-front: #fff100;
 }
 :is(
   .shell,
