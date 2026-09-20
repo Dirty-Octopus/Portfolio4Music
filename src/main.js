@@ -4,6 +4,8 @@ import "@fontsource/ibm-plex-mono/latin-400.css";
 import "./style.css";
 import "./forum.css";
 import "./choreography.css";
+import "./experience.css";
+import { initTactileExperience } from "./tactile.js";
 import { t, trackTitle, setLanguage } from "./i18n.js";
 import {
   initInterface,
@@ -116,11 +118,15 @@ const sfxReady = engine.preloadSfx(
   Object.fromEntries(
     Object.entries({
       ...manifest.sfx,
-      preselect: "media/preselect.wav",
       pad: "media/pad.wav",
     }).map(([key, path]) => [key, asset(path)]),
   ),
 );
+engine.preloadSfx({
+  preselect: asset("media/preselect.wav"),
+  clack: asset("media/clack.wav"),
+  round: asset("media/round.wav"),
+});
 video.src = asset(manifest.videos[0].src);
 video.poster = asset(manifest.videos[0].poster);
 audio.src = asset(current.src);
@@ -332,9 +338,13 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "/" && !input) {
     event.preventDefault();
-    if (["video", "about"].includes($(".shell").dataset.view)) {
+    if ($(".shell").dataset.view !== "audio" || $(".workspace").inert) {
+      const focusSearch = (event) => {
+        document.removeEventListener("modulesettled", focusSearch);
+        if (event.detail === "audio") $("#search").focus();
+      };
+      document.addEventListener("modulesettled", focusSearch);
       changeView("audio");
-      setTimeout(() => $("#search").focus(), motionAllowed() ? 980 : 0);
     } else $("#search").focus();
   }
   if (event.key === "Escape" && event.target === $("#search")) {
@@ -404,7 +414,7 @@ $("#bgm-toggle").addEventListener("click", async () => {
   await sfxReady;
   await engine.setBgmEnabled(engine.bgmEnabled);
 });
-let lastPreselect = 0;
+let lastPreselect = { control: null, time: 0 };
 function preselect(event) {
   const control = event.target.closest("button,a,input[type=range]");
   if (!control || control.disabled || !$("#boot").hidden || !entered) return;
@@ -414,8 +424,9 @@ function preselect(event) {
   )
     return;
   const now = performance.now();
-  if (now - lastPreselect < 100) return;
-  lastPreselect = now;
+  if (control === lastPreselect.control && now - lastPreselect.time < 30)
+    return;
+  lastPreselect = { control, time: now };
   engine.sfx("preselect");
 }
 document.addEventListener("pointerover", preselect);
@@ -424,8 +435,7 @@ $("#filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (!button) return;
   category = button.dataset.category;
-  if (["video", "about"].includes($(".shell").dataset.view))
-    changeView("audio");
+  if ($(".shell").dataset.view !== "audio") changeView("audio");
   logAction(`${t("分类", "FILTER")} / ${labelFor(category)}`);
   $$(".filter").forEach((el) => {
     el.classList.toggle("active", el === button);
@@ -679,10 +689,10 @@ initInterface({
   categoryLabel: labelFor,
   getTrack: () => current,
   onView: (view) => {
-    if (["audio", "about"].includes(view) && !video.paused)
-      engine.pause("video");
+    if (view !== "video" && !video.paused) engine.pause("video");
   },
 });
+initTactileExperience({ engine, motionAllowed });
 
 document.addEventListener("languagechange", () => {
   renderFilters();

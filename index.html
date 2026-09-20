@@ -125,8 +125,8 @@
                 <span>01</span><b>声音作品</b><small>AUDIO</small></button
               ><button class="nav" data-nav="video">
                 <span>02</span><b>影像剧场</b><small>VISUAL</small></button
-              ><button class="nav" data-nav="about">
-                <span>03</span><b>关于创作</b><small>PROFILE</small>
+              ><button class="nav" data-nav="fun">
+                <span>03</span><b>有趣的东西</b><small>PLAYGROUND</small>
               </button>
             </nav>
           </div>
@@ -162,30 +162,22 @@
           <div class="halftone"></div>
           <div class="scanlines"></div>
           <div class="signal-assembly" aria-hidden="true">
-            <div class="signal-fin signal-fin-a"></div>
-            <div class="signal-fin signal-fin-b"></div>
             <svg class="signal-contour" viewBox="0 0 620 244" fill="none">
               <g class="contour-frame">
-                <path
-                  d="M10 42H180L222 10H530L568 48H620M48 244V178L87 144H392L438 96H588V14"
-                />
-                <path
-                  d="M115 244V202L153 169H422L464 125H620M283 0V40L320 76H528L554 50H620"
-                />
+                <path d="M20 18H556L602 64V206H394L374 226H20" />
+                <path d="M20 24H553L596 67V200H391L371 220H20" />
               </g>
               <g class="contour-trace">
-                <path pathLength="100" d="M10 42H180L222 10H530L568 48H620" />
                 <path
                   pathLength="100"
-                  d="M48 244V178L87 144H392L438 96H588V14"
+                  d="M20 18H556L602 64V206H394L374 226H20"
+                />
+                <path
+                  pathLength="100"
+                  d="M20 24H553L596 67V200H391L371 220H20"
                 />
               </g>
-              <path
-                class="contour-bracket"
-                d="M290 105L305 90H372M290 105V130M505 178L490 193H424M505 178V153"
-              />
             </svg>
-            <div class="signal-slit"></div>
             <div class="signal-scan"></div>
           </div>
           <div class="hero-side">
@@ -284,267 +276,324 @@
             ><span><b>02</b> SFX</span>
           </div>
         </div>
-        <div class="workspace">
-          <div class="module-shutter" aria-hidden="true">
-            <i></i><i></i><i></i><span>RECONFIGURING VIEW</span>
-          </div>
-          <aside class="catalog">
-            <h2 class="panel-label">声音索引 <span>INDEX</span></h2>
-            <div
-              id="filters"
-              class="filters"
-              role="group"
-              aria-label="音乐分类"
-            ></div>
-            <div class="catalog-bottom">
-              <div class="mini-signal" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
-                ><i></i><i></i><i></i>
-              </div>
-              <p>SOUND<br />WITHOUT<br />BOUNDARIES.</p>
-              <small>从旋律，到完整的声音世界。</small>
-            </div>
-          </aside>
-          <section
-            class="audio-library"
-            id="audio-section"
-            aria-label="音频作品"
-          >
-            <div class="library-heading">
-              <h2 id="category-title">全部作品 <span>ALL AUDIO</span></h2>
-              <span id="result-count"></span>
-            </div>
-            <label class="search"
-              ><span data-icon="magnifying-glass"></span
-              ><input
-                id="search"
-                type="search"
-                placeholder="搜索作品名称…"
-                aria-label="搜索作品"
-                autocomplete="off"
-              /><kbd>/</kbd></label
-            >
-            <div class="list-header">
-              <span>TRACK / 作品</span><span>FORMAT</span><span>TIME</span>
-            </div>
-            <div
-              id="track-list"
-              class="track-list"
-              role="group"
-              aria-label="作品列表"
-            ></div>
-            <div class="library-footer">
-              <span id="library-summary"></span
-              ><span
-                >SELECT A TRACK TO LISTEN
-                <span data-icon="arrow-up-right"></span
-              ></span>
-            </div>
-          </section>
-          <aside class="visual-column">
-            <section
-              class="video-panel"
-              id="video-section"
-              aria-label="独立视频播放器"
-            >
-              <h2 class="panel-label">
-                <span class="heading-main">FEATURE / 影像配乐</span
-                ><button id="theater-toggle" aria-label="展开影像剧场">
-                  <span data-icon="arrows-out-simple"></span>
-                </button>
-              </h2>
-              <div class="video-stage" id="video-stage">
-                <video
-                  id="video"
-                  playsinline
-                  preload="metadata"
-                  aria-label="影视预告片配乐与音效设计练习"
-                ></video
-                ><button
-                  id="video-overlay"
-                  class="video-overlay"
-                  aria-label="播放视频"
+        <div class="view-port">
+          <div class="workspace" aria-busy="false">
+            <section class="biography" aria-labelledby="profile-title">
+              <div class="profile-identity">
+                <span class="micro">00 / PERSONAL FILE</span>
+                <img src="./art/dirty-octopus-logo.jpg" alt="Dirty Octopus" />
+                <span class="profile-stamp"
+                  >DIRTY OCTOPUS<br /><small
+                    >COMPOSITION / SOUND DESIGN</small
+                  ></span
                 >
-                  <span data-icon="play"></span
-                  ><span>PLAY SHOWREEL</span></button
-                ><span class="video-badge">1920 × 1080 / FILM</span>
               </div>
-              <div class="video-controls">
-                <button
-                  id="video-play"
-                  class="icon-button"
-                  aria-label="播放视频"
-                >
-                  <span data-icon="play"></span></button
-                ><span id="video-time">00:00</span
-                ><input
-                  type="range"
-                  id="video-seek"
-                  aria-label="视频进度"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value="0"
-                /><span id="video-duration">01:21</span
-                ><button
-                  class="icon-button"
-                  id="fullscreen"
-                  aria-label="视频全屏"
-                >
-                  <span data-icon="corners-out"></span>
-                </button>
-              </div>
-              <div class="video-caption">
-                <h3>影视预告片配乐 / 音效设计</h3>
-                <span>SCORING & SOUND DESIGN</span>
-              </div>
-            </section>
-            <section class="info-panel" id="about-section">
-              <h2 class="panel-label">
-                PROFILE / 创作频段 <span>DIRTY OCTOPUS</span>
-              </h2>
-              <div class="profile-art">
-                <img
-                  src="./art/dirty-octopus-logo.jpg"
-                  alt="Dirty Octopus glitch artwork"
-                /><span>INDEPENDENT.<br />UNDEFINED.</span>
-              </div>
-              <div class="profile-copy">
-                <p class="profile-lead">
-                  音乐不止是背景。<br /><b>它是另一个叙事者。</b>
+              <div class="biography-copy">
+                <div class="profile-heading">
+                  <span class="micro" data-i18n="profile">个人简介</span
+                  ><span class="online"></span>
+                </div>
+                <h2 id="profile-title">DIRTY OCTOPUS</h2>
+                <p class="profile-role" data-i18n="profileRole">
+                  音乐制作 / 混音 / 声音设计
                 </p>
-                <p class="muted">
-                  从影视与游戏配乐，到管弦、民族与流行实验。这里保留完整作品，也保留草稿与练习中的创作现场。
-                </p>
-                <div class="info-meta">
-                  <span>16 <small>音乐作品</small></span
-                  ><span>01 <small>影像作品</small></span
-                  ><span>02 <small>界面音效</small></span>
+                <p data-i18n="biographyExperience"></p>
+                <p data-i18n="biographyReach"></p>
+                <p data-i18n="biographyRecognition"></p>
+                <div class="profile-credits">
+                  <span
+                    ><b>3+</b
+                    ><small data-i18n="yearsFreelance"
+                      >年个人接稿经验</small
+                    ></span
+                  >
+                  <span
+                    ><b>390K+</b
+                    ><small data-i18n="youtubePlays"
+                      >YouTube 单曲播放</small
+                    ></span
+                  >
+                  <span
+                    ><b>~240K</b
+                    ><small data-i18n="douyinLikes">抖音累计获赞</small></span
+                  >
                 </div>
               </div>
             </section>
-            <section class="inspector">
-              <h2 class="panel-label">SELECTED FILE <span>文件检视</span></h2>
-              <p id="inspector-title"></p>
-              <div class="inspector-summary">
-                <span id="inspector-format"></span
-                ><span id="inspector-length"></span>
+            <section class="playground" aria-labelledby="playground-title">
+              <div class="playground-heading">
+                <span class="micro">03 / OFF THE RECORD</span>
+                <h2 id="playground-title" data-i18n="playground">有趣的东西</h2>
+                <span class="micro">ROTARY / 01</span>
               </div>
-              <button id="inspect-toggle" aria-expanded="false">
-                展开文件信息 <span>+</span>
-              </button>
-              <div id="file-details" hidden>
-                <dl>
-                  <dt>ORIGINAL FILE</dt>
-                  <dd id="inspector-filename"></dd>
-                  <dt>CATEGORY</dt>
-                  <dd id="inspector-category"></dd>
-                  <dt>SAMPLE RATE</dt>
-                  <dd id="inspector-rate"></dd>
-                </dl>
+              <div class="rotary-stage">
+                <canvas id="rotary-particles" aria-hidden="true"></canvas>
+                <div class="rotary-assembly">
+                  <div class="rotary-ticks" aria-hidden="true"></div>
+                  <div class="rotary-crosshair" aria-hidden="true"></div>
+                  <div
+                    id="rotary-knob"
+                    role="slider"
+                    tabindex="0"
+                    aria-label="旋钮"
+                    aria-valuemin="0"
+                    aria-valuemax="359"
+                    aria-valuenow="0"
+                    aria-valuetext="0°"
+                  >
+                    <div class="rotary-cap">
+                      <i></i><span>DO<br /><small>ROTARY</small></span>
+                    </div>
+                  </div>
+                  <span class="rotary-mark rotary-mark-top" aria-hidden="true"
+                    >N</span
+                  >
+                  <span
+                    class="rotary-mark rotary-mark-bottom"
+                    aria-hidden="true"
+                    >S</span
+                  >
+                </div>
+                <span class="rotary-caption" aria-hidden="true"
+                  >SOUND / IN MOTION</span
+                >
               </div>
             </section>
-          </aside>
-        </div>
-        <section class="transport" aria-label="音乐播放器">
-          <div class="transport-label">
-            <span>PLAYBACK.MODULE</span><span>STEREO / MASTER BUS</span>
-          </div>
-          <div class="now-playing">
-            <div class="disc" id="disc" aria-hidden="true">
-              <img src="./art/dirty-octopus-logo.jpg" alt="" />
-              <div class="cartridge-bars"><i></i><i></i><i></i></div>
-            </div>
-            <div class="track-meta">
-              <p class="micro" id="play-state">READY / 待播放</p>
-              <h2 id="current-title"></h2>
-              <p id="current-detail"></p>
-            </div>
-          </div>
-          <div class="wave-deck">
-            <div class="wave-ticks">
-              <span id="audio-time">00:00</span
-              ><span class="wave-label">AUDIO WAVEFORM</span
-              ><span id="audio-duration">00:00</span>
-            </div>
-            <div class="wave-area">
-              <canvas id="waveform" aria-hidden="true"></canvas
-              ><input
-                type="range"
-                id="audio-seek"
-                min="0"
-                max="100"
-                step="0.05"
-                value="0"
-                aria-label="音乐进度"
-              />
-            </div>
-            <div class="transport-controls">
-              <div>
-                <button id="previous" class="icon-button" aria-label="上一首">
-                  <span data-icon="skip-back"></span></button
-                ><button
-                  id="audio-play"
-                  class="play-button"
-                  aria-label="播放音乐"
-                >
-                  <span data-icon="play"></span><span>PLAY</span></button
-                ><button id="next" class="icon-button" aria-label="下一首">
-                  <span data-icon="skip-forward"></span>
-                </button>
+            <aside class="catalog">
+              <h2 class="panel-label">声音索引 <span>INDEX</span></h2>
+              <div
+                id="filters"
+                class="filters"
+                role="group"
+                aria-label="音乐分类"
+              ></div>
+              <div class="catalog-bottom">
+                <div class="mini-signal" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i
+                  ><i></i><i></i><i></i>
+                </div>
+                <p>SOUND<br />WITHOUT<br />BOUNDARIES.</p>
+                <small>从旋律，到完整的声音世界。</small>
               </div>
-              <div>
-                <button
-                  id="loop"
-                  class="icon-button"
-                  aria-label="单曲循环"
-                  aria-pressed="false"
-                >
-                  <span data-icon="repeat"></span></button
-                ><span class="key-hint">SPACE TO PLAY / PAUSE</span>
+            </aside>
+            <section
+              class="audio-library"
+              id="audio-section"
+              aria-label="音频作品"
+            >
+              <div class="library-heading">
+                <h2 id="category-title">全部作品 <span>ALL AUDIO</span></h2>
+                <span id="result-count"></span>
               </div>
-            </div>
-          </div>
-          <div class="output">
-            <div class="output-label">
-              <span>MASTER OUTPUT</span><span id="volume-value">65%</span>
-            </div>
-            <canvas
-              id="spectrum"
-              width="180"
-              height="38"
-              aria-label="实时音频频谱"
-            ></canvas>
-            <div class="volume-control">
-              <button
-                id="mute"
-                class="icon-button"
-                aria-label="静音"
-                aria-pressed="false"
+              <label class="search"
+                ><span data-icon="magnifying-glass"></span
+                ><input
+                  id="search"
+                  type="search"
+                  placeholder="搜索作品名称…"
+                  aria-label="搜索作品"
+                  autocomplete="off"
+                /><kbd>/</kbd></label
               >
-                <span data-icon="speaker-high"></span></button
-              ><input
-                type="range"
-                id="volume"
-                min="0"
-                max="1"
-                step="0.01"
-                value="0.65"
-                aria-label="主音量"
-              />
-            </div>
+              <div class="list-header">
+                <span>TRACK / 作品</span><span>FORMAT</span><span>TIME</span>
+              </div>
+              <div
+                id="track-list"
+                class="track-list"
+                role="group"
+                aria-label="作品列表"
+              ></div>
+              <div class="library-footer">
+                <span id="library-summary"></span
+                ><span
+                  >SELECT A TRACK TO LISTEN
+                  <span data-icon="arrow-up-right"></span
+                ></span>
+              </div>
+            </section>
+            <aside class="visual-column">
+              <section
+                class="video-panel"
+                id="video-section"
+                aria-label="独立视频播放器"
+              >
+                <h2 class="panel-label">
+                  <span class="heading-main">FEATURE / 影像配乐</span
+                  ><button id="theater-toggle" aria-label="展开影像剧场">
+                    <span data-icon="arrows-out-simple"></span>
+                  </button>
+                </h2>
+                <div class="video-stage" id="video-stage">
+                  <video
+                    id="video"
+                    playsinline
+                    preload="metadata"
+                    aria-label="影视预告片配乐与音效设计练习"
+                  ></video
+                  ><button
+                    id="video-overlay"
+                    class="video-overlay"
+                    aria-label="播放视频"
+                  >
+                    <span data-icon="play"></span
+                    ><span>PLAY SHOWREEL</span></button
+                  ><span class="video-badge">1920 × 1080 / FILM</span>
+                </div>
+                <div class="video-controls">
+                  <button
+                    id="video-play"
+                    class="icon-button"
+                    aria-label="播放视频"
+                  >
+                    <span data-icon="play"></span></button
+                  ><span id="video-time">00:00</span
+                  ><input
+                    type="range"
+                    id="video-seek"
+                    aria-label="视频进度"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value="0"
+                  /><span id="video-duration">01:21</span
+                  ><button
+                    class="icon-button"
+                    id="fullscreen"
+                    aria-label="视频全屏"
+                  >
+                    <span data-icon="corners-out"></span>
+                  </button>
+                </div>
+                <div class="video-caption">
+                  <h3>影视预告片配乐 / 音效设计</h3>
+                  <span>SCORING & SOUND DESIGN</span>
+                </div>
+              </section>
+              <section class="inspector">
+                <h2 class="panel-label">SELECTED FILE <span>文件检视</span></h2>
+                <p id="inspector-title"></p>
+                <div class="inspector-summary">
+                  <span id="inspector-format"></span
+                  ><span id="inspector-length"></span>
+                </div>
+                <button id="inspect-toggle" aria-expanded="false">
+                  展开文件信息 <span>+</span>
+                </button>
+                <div id="file-details" hidden>
+                  <dl>
+                    <dt>ORIGINAL FILE</dt>
+                    <dd id="inspector-filename"></dd>
+                    <dt>CATEGORY</dt>
+                    <dd id="inspector-category"></dd>
+                    <dt>SAMPLE RATE</dt>
+                    <dd id="inspector-rate"></dd>
+                  </dl>
+                </div>
+              </section>
+            </aside>
           </div>
-        </section>
+        </div>
         <footer>
           <span
             >© <span id="year"></span> DIRTY OCTOPUS <i>/</i> MUSIC & SOUND
             DESIGN</span
-          ><span class="footer-message">听见想象之外。</span
-          ><button id="back-top">
+          >
+          <span class="footer-message">听见想象之外。</span>
+          <button id="back-top">
             BACK TO TOP <span data-icon="arrow-up-right"></span>
           </button>
         </footer>
       </main>
+      <section class="transport" aria-label="音乐播放器">
+        <div class="transport-label">
+          <span>PLAYBACK.MODULE</span><span>STEREO / MASTER BUS</span>
+        </div>
+        <div class="now-playing">
+          <div class="disc" id="disc" aria-hidden="true">
+            <img src="./art/dirty-octopus-logo.jpg" alt="" />
+            <div class="cartridge-bars"><i></i><i></i><i></i></div>
+          </div>
+          <div class="track-meta">
+            <p class="micro" id="play-state">READY / 待播放</p>
+            <h2 id="current-title"></h2>
+            <p id="current-detail"></p>
+          </div>
+        </div>
+        <div class="wave-deck">
+          <div class="wave-ticks">
+            <span id="audio-time">00:00</span
+            ><span class="wave-label">AUDIO WAVEFORM</span
+            ><span id="audio-duration">00:00</span>
+          </div>
+          <div class="wave-area">
+            <canvas id="waveform" aria-hidden="true"></canvas
+            ><input
+              type="range"
+              id="audio-seek"
+              min="0"
+              max="100"
+              step="0.05"
+              value="0"
+              aria-label="音乐进度"
+            />
+          </div>
+          <div class="transport-controls">
+            <div>
+              <button id="previous" class="icon-button" aria-label="上一首">
+                <span data-icon="skip-back"></span></button
+              ><button
+                id="audio-play"
+                class="play-button"
+                aria-label="播放音乐"
+              >
+                <span data-icon="play"></span><span>PLAY</span></button
+              ><button id="next" class="icon-button" aria-label="下一首">
+                <span data-icon="skip-forward"></span>
+              </button>
+            </div>
+            <div>
+              <button
+                id="loop"
+                class="icon-button"
+                aria-label="单曲循环"
+                aria-pressed="false"
+              >
+                <span data-icon="repeat"></span></button
+              ><span class="key-hint">SPACE TO PLAY / PAUSE</span>
+            </div>
+          </div>
+        </div>
+        <div class="output">
+          <div class="output-label">
+            <span>MASTER OUTPUT</span><span id="volume-value">65%</span>
+          </div>
+          <canvas
+            id="spectrum"
+            width="180"
+            height="38"
+            aria-label="实时音频频谱"
+          ></canvas>
+          <div class="volume-control">
+            <button
+              id="mute"
+              class="icon-button"
+              aria-label="静音"
+              aria-pressed="false"
+            >
+              <span data-icon="speaker-high"></span></button
+            ><input
+              type="range"
+              id="volume"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.65"
+              aria-label="主音量"
+            />
+          </div>
+        </div>
+      </section>
       <div class="bottom-label">
         <span>CRAFTED FOR LISTENING.</span><span>HEADPHONES RECOMMENDED</span>
       </div>
@@ -628,7 +677,12 @@
       </div>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div class="scroll-ruler" aria-hidden="true"><i></i></div>
+    <div class="screen-bloom" aria-hidden="true"></div>
     <div class="screen-diffusion" aria-hidden="true"></div>
+    <div class="screen-patina" aria-hidden="true">
+      <canvas id="screen-noise"></canvas>
+    </div>
     <audio id="audio" preload="metadata"></audio>
     <script type="module" src="/src/main.js"></script>
   </body>

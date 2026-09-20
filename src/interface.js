@@ -1,19 +1,17 @@
-/** State-led interface choreography. Content changes underneath a single shutter;
- * audio/video elements remain mounted so module changes preserve transport state. */
+/** One reversible motion timeline keeps rapid navigation continuous.
+ * Media elements remain mounted while the unified content plane folds and opens. */
 import { t, trackTitle } from "./i18n.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const labels = {
-  overview: ["总览", "OVERVIEW"],
+  overview: ["个人简介", "ARTIST PROFILE"],
   audio: ["声音作品", "AUDIO ARCHIVE"],
   video: ["影像剧场", "VISUAL THEATER"],
-  about: ["关于创作", "ARTIST PROFILE"],
+  fun: ["有趣的东西", "PLAYGROUND"],
 };
-let transitionTimer,
-  finishTimer,
-  transitionId = 0,
+let transition = null,
+  heightMotion = null,
   pendingView = null,
-  commitPending = null,
   options = {};
 const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
 export const motionAllowed = () =>
@@ -27,10 +25,6 @@ function updateViewLabels() {
     "原创作品 / 独立声音",
     "ORIGINAL WORKS / INDEPENDENT SOUND",
   );
-  $(".module-shutter span").textContent = t(
-    "正在重构界面",
-    "RECONFIGURING VIEW",
-  );
   $("#theater-toggle").setAttribute(
     "aria-label",
     view === "video"
@@ -38,114 +32,110 @@ function updateViewLabels() {
       : t("展开影像剧场", "Expand visual theater"),
   );
 }
+function commitView(view) {
+  $(".shell").dataset.view = view;
+  $$(".nav").forEach((element) => {
+    const active = element.dataset.nav === view;
+    element.classList.toggle("active", active);
+    element.setAttribute("aria-current", active ? "page" : "false");
+  });
+  options.onView?.(view);
+  updateViewLabels();
+  logAction(`${t("版块", "MODULE")} / ${t(...labels[view])}`);
+  document.dispatchEvent(new CustomEvent("modulechange", { detail: view }));
+}
 function settleTransition() {
-  clearTimeout(transitionTimer);
-  clearTimeout(finishTimer);
-  if (pendingView) commitPending?.();
-  $(".workspace").classList.remove("changing");
-  $(".shell").classList.remove("switching");
+  if (pendingView && pendingView !== $(".shell").dataset.view)
+    commitView(pendingView);
+  pendingView = null;
+  if (transition) {
+    transition.onfinish = null;
+    transition.cancel();
+    transition = null;
+  }
+  heightMotion?.cancel();
+  heightMotion = null;
+  $(".view-port").style.height = "";
+  $(".shell").classList.remove("reconfiguring");
+  $(".workspace").inert = false;
   $(".workspace").setAttribute("aria-busy", "false");
+  $$(".nav.pending").forEach((el) => el.classList.remove("pending"));
+  document.dispatchEvent(
+    new CustomEvent("modulesettled", { detail: $(".shell").dataset.view }),
+  );
 }
 export function changeView(view) {
   if (!(view in labels)) return;
   const shell = $(".shell"),
-    workspace = $(".workspace");
-  if (shell.dataset.view === view && !pendingView) return;
-  const id = ++transitionId;
-  clearTimeout(transitionTimer);
-  clearTimeout(finishTimer);
-  workspace
-    .getAnimations({ subtree: true })
-    .forEach((animation) => animation.cancel());
-  if (shell.dataset.view === view) {
-    pendingView = null;
-    workspace.classList.remove("changing");
-    shell.classList.remove("switching");
-    workspace.setAttribute("aria-busy", "false");
-    options.onView?.(view);
+    workspace = $(".workspace"),
+    port = $(".view-port");
+  if (view === pendingView || (!transition && shell.dataset.view === view))
+    return;
+  pendingView = view;
+  $$(".nav").forEach((el) =>
+    el.classList.toggle("pending", el.dataset.nav === view),
+  );
+  if (!motionAllowed()) {
+    settleTransition();
     return;
   }
-  pendingView = view;
-  options.onView?.(view);
-  // A single active shutter is reused, including after rapid repeated navigation.
-  workspace.classList.remove("changing");
-  shell.classList.remove("switching");
-  void workspace.offsetWidth;
-  if (motionAllowed()) {
-    workspace.classList.add("changing");
-    shell.classList.add("switching");
+  if (!transition) {
+    port.style.height = `${workspace.offsetHeight}px`;
+    shell.classList.add("reconfiguring");
+    workspace.inert = true;
     workspace.setAttribute("aria-busy", "true");
+    transition = workspace.animate(
+      [
+        {
+          opacity: 1,
+          transform: "translateY(0) scale(1)",
+          clipPath: "inset(0% 0% 0% 0%)",
+          filter: "blur(0px)",
+        },
+        {
+          opacity: 0.6,
+          transform: "translateY(8px) scale(.975, .94)",
+          clipPath: "inset(18% 0% 18% 0%)",
+          filter: "blur(.7px)",
+          offset: 0.55,
+        },
+        {
+          opacity: 0,
+          transform: "translateY(12px) scale(.95, .88)",
+          clipPath: "inset(50% 0% 50% 0%)",
+          filter: "blur(2px)",
+        },
+      ],
+      { duration: 680, easing: "cubic-bezier(.55,0,.3,1)", fill: "both" },
+    );
+    transition.pause();
+    transition.currentTime = 0;
+    transition.onfinish = () => {
+      if (transition.playbackRate < 0) {
+        settleTransition();
+        return;
+      }
+      const from = port.getBoundingClientRect().height;
+      heightMotion?.cancel();
+      if (pendingView) commitView(pendingView);
+      pendingView = null;
+      const to = workspace.offsetHeight;
+      port.style.height = `${to}px`;
+      heightMotion = port.animate(
+        [{ height: `${from}px` }, { height: `${to}px` }],
+        {
+          duration: 900,
+          easing: "cubic-bezier(.22,.7,.12,1)",
+          fill: "both",
+        },
+      );
+      transition.updatePlaybackRate(-0.76);
+      transition.play();
+    };
   }
-  const commit = () => {
-    if (id !== transitionId) return;
-    shell.dataset.view = view;
-    pendingView = null;
-    $$(".nav").forEach((el) => {
-      const active = el.dataset.nav === view;
-      el.classList.toggle("active", active);
-      el.setAttribute("aria-current", active ? "page" : "false");
-    });
-    updateViewLabels();
-    logAction(`${t("版块", "MODULE")} / ${t(...labels[view])}`);
-    if (motionAllowed()) {
-      $$(".catalog,.audio-library,.video-panel,.info-panel,.inspector")
-        .filter((panel) => panel.getBoundingClientRect().width > 0)
-        .forEach((panel, index) =>
-          panel.animate(
-            [
-              {
-                clipPath:
-                  "polygon(0 0, 8% 0, 8% 30%, 18% 48%, 18% 100%, 0 100%, 0 70%, 0 30%)",
-                opacity: 0.35,
-                transform: `translate(${index % 2 ? 24 : -18}px, 16px)`,
-              },
-              {
-                clipPath:
-                  "polygon(0 0, 74% 0, 74% 24%, 92% 42%, 92% 100%, 12% 100%, 12% 70%, 0 58%)",
-                opacity: 0.75,
-                transform: "translate(5px, -3px)",
-                offset: 0.48,
-              },
-              {
-                clipPath:
-                  "polygon(0 0, 94% 0, 94% 20%, 100% 28%, 100% 100%, 0 100%, 0 70%, 0 30%)",
-                opacity: 1,
-                transform: "translate(-2px, 1px)",
-                offset: 0.76,
-              },
-              {
-                clipPath:
-                  "polygon(0 0, 100% 0, 100% 30%, 100% 50%, 100% 100%, 0 100%, 0 70%, 0 30%)",
-                opacity: 1,
-                transform: "translate(0, 0)",
-              },
-            ],
-            {
-              duration: 1250,
-              delay: index * 95,
-              easing: "cubic-bezier(.22,.7,.12,1)",
-              fill: "backwards",
-            },
-          ),
-        );
-    }
-    const rect = workspace.getBoundingClientRect();
-    if (rect.top > innerHeight - 140)
-      workspace.scrollIntoView({
-        block: "start",
-        behavior: motionAllowed() ? "smooth" : "instant",
-      });
-    document.dispatchEvent(new CustomEvent("modulechange", { detail: view }));
-  };
-  commitPending = commit;
-  if (motionAllowed()) transitionTimer = setTimeout(commit, 900);
-  else commit();
-  finishTimer = setTimeout(
-    () => {
-      if (id === transitionId) settleTransition();
-    },
-    motionAllowed() ? 1900 : 0,
-  );
+  // Reversing preserves currentTime; requests during closing only replace the destination.
+  transition.updatePlaybackRate(shell.dataset.view === view ? -0.76 : 1);
+  transition.play();
 }
 export function logAction(message) {
   if ($("#last-action")) $("#last-action").textContent = message;

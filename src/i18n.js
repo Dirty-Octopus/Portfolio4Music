@@ -37,6 +37,27 @@ const content = {
   bgm: ["背景音乐", "BACKGROUND MUSIC"],
   softness: ["屏幕柔化", "SCREEN DIFFUSION"],
   language: ["语言", "LANGUAGE"],
+  profile: ["个人简介", "ARTIST PROFILE"],
+  profileRole: [
+    "音乐制作 / 混音 / 声音设计",
+    "MUSIC PRODUCTION / MIXING / SOUND DESIGN",
+  ],
+  biographyExperience: [
+    "曾在美国独立游戏工作室 Biobyte Studio 兼职担任音频总监，有三年以上个人接稿经验，并参与过多个来自国内外的中小型商业混音、音乐及音效项目。",
+    "Previously a part-time Audio Director at US indie game studio Biobyte Studio, with over three years of freelance experience and contributions to small and mid-sized commercial mixing, music and sound design projects in China and abroad.",
+  ],
+  biographyReach: [
+    "个人独立作品在 YouTube 单曲最高播放量超过 39 万，抖音作品累计获赞约 24 万。",
+    "My most-played independent release on YouTube has surpassed 390,000 views, and my work on Douyin has received approximately 240,000 likes in total.",
+  ],
+  biographyRecognition: [
+    "部分作品也曾得到 HOYO-MiX 总监 TSAR 崔瀚普、制作人 Exyl、国内知名嘻哈制作人、韩国 HYBE 娱乐公司制作人等业内人士的认可。",
+    "Some of my work has also received recognition from industry professionals including HOYO-MiX director TSAR (Cui Hanpu), producer Exyl, prominent Chinese hip-hop producers and producers at South Korea's HYBE.",
+  ],
+  yearsFreelance: ["年个人接稿经验", "YEARS FREELANCING"],
+  youtubePlays: ["YouTube 单曲播放", "YOUTUBE / TOP RELEASE"],
+  douyinLikes: ["抖音累计获赞", "DOUYIN / TOTAL LIKES"],
+  playground: ["有趣的东西", "OFF THE RECORD"],
 };
 
 // Explicit selectors keep translation separate from playback and icon markup.
@@ -59,10 +80,11 @@ const markup = {
     "INDEPENDENT AUDIO EXPLORATIONS",
   ],
   ".navigation-caption > span:last-child": ["作品集目录", "ARCHIVE DIRECTORY"],
-  '[data-nav="overview"] b': ["总览", "Overview"],
+  '[data-nav="overview"] b': ["个人简介", "Profile"],
+  '[data-nav="overview"] small': ["PROFILE", "BIOGRAPHY"],
   '[data-nav="audio"] b': ["声音作品", "Audio"],
   '[data-nav="video"] b': ["影像剧场", "Visual"],
-  '[data-nav="about"] b': ["关于创作", "Profile"],
+  '[data-nav="fun"] b': ["有趣的东西", "Playground"],
   "#system-open > span:last-child": ["设置", "SYSTEM"],
   ".hero-copy > .micro": [
     "独立音乐 / 声音实验 / 创作档案",
@@ -119,22 +141,6 @@ const markup = {
     "配乐与声音设计习作",
     "A SCORING & SOUND DESIGN STUDY",
   ],
-  ".info-panel > .panel-label": [
-    "创作频段 <span>DIRTY OCTOPUS</span>",
-    "PROFILE <span>DIRTY OCTOPUS</span>",
-  ],
-  ".profile-art > span": ["独立。<br>无定义。", "INDEPENDENT.<br>UNDEFINED."],
-  ".profile-lead": [
-    "音乐不止是背景。<br><b>它是另一个叙事者。</b>",
-    "Music is more than a backdrop.<br><b>It is another storyteller.</b>",
-  ],
-  ".profile-copy > .muted": [
-    "从影视与游戏配乐，到管弦、民族与流行实验。这里保留完整作品，也保留草稿与练习中的创作现场。",
-    "From film and game scores to orchestral, world and pop experiments. Finished pieces live alongside drafts and studies, preserving the process behind the sound.",
-  ],
-  ".info-meta > span:nth-child(1) small": ["音乐作品", "AUDIO WORKS"],
-  ".info-meta > span:nth-child(2) small": ["影像作品", "SHOWREEL"],
-  ".info-meta > span:nth-child(3) small": ["界面音效", "INTERFACE SFX"],
   ".inspector > .panel-label": [
     "文件检视 <span>已选作品</span>",
     "SELECTED FILE <span>INSPECTOR</span>",
@@ -209,6 +215,7 @@ const attributes = {
   "#system-open": ["打开系统控制台", "Open system controls"],
   "#system-close": ["关闭系统控制台", "Close system controls"],
   "#softness": content.softness,
+  "#rotary-knob": ["旋钮", "Rotary dial"],
   ".scene-corner > div": ["画面处理", "Display processing"],
 };
 

@@ -39,6 +39,8 @@ export class PlaybackEngine {
     this.buffers = {};
     this.sfxVoice = null;
     this.cueVoice = null;
+    this.accentVoice = null;
+    this.sfxDecodes = {};
     this.playedCues = new Set();
     this.endedCallback = null;
     for (const [kind, element] of Object.entries(this.media)) {
@@ -233,17 +235,20 @@ export class PlaybackEngine {
     if (!this.sfxEnabled || !this.context) return;
     const cue = name === "bootupcrt" || name === "flicker";
     if (cue && this.playedCues.has(name)) return;
-    const serialKey = cue ? "cueSerial" : "sfxSerial";
-    const voiceKey = cue ? "cueVoice" : "sfxVoice";
+    const lane = cue ? "cue" : name === "round" ? "accent" : "sfx";
+    const serialKey = `${lane}Serial`;
+    const voiceKey = `${lane}Voice`;
     const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
     try {
-      if (!this.buffers[name] && this.rawSfx?.[name])
-        this.buffers[name] = await this.context.decodeAudioData(
+      if (!this.buffers[name] && this.rawSfx?.[name]) {
+        this.sfxDecodes[name] ??= this.context.decodeAudioData(
           this.rawSfx[name].slice(0),
         );
+        this.buffers[name] = await this.sfxDecodes[name];
+      }
       if (!this.buffers[name] || serial !== this[serialKey] || !this.sfxEnabled)
         return;
-      // One-shot intro cues keep their natural tails while UI sounds remain non-stacking.
+      // Intro and repeatable round accents retain their tails through rapid detents.
       this.stopVoice(voiceKey);
       const source = this.context.createBufferSource();
       source.buffer = this.buffers[name];
@@ -251,10 +256,18 @@ export class PlaybackEngine {
       const now = this.context.currentTime;
       const duration = source.buffer.duration;
       const level =
-        { notification: 0.28, bootupcrt: 0.32, flicker: 0.16 }[name] ?? 0.19;
+        {
+          notification: 0.28,
+          bootupcrt: 0.32,
+          flicker: 0.16,
+          clack: 0.16,
+          round: 0.24,
+        }[name] ?? 0.19;
+      const attack = Math.min(0.003, duration * 0.1);
+      const release = Math.min(0.015, duration * 0.25);
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(level, now + 0.005);
-      gain.gain.setValueAtTime(level, now + Math.max(0.006, duration - 0.015));
+      gain.gain.linearRampToValueAtTime(level, now + attack);
+      gain.gain.setValueAtTime(level, now + duration - release);
       gain.gain.linearRampToValueAtTime(0, now + duration);
       source.connect(gain);
       gain.connect(this.master);
@@ -267,6 +280,7 @@ export class PlaybackEngine {
       };
       this[voiceKey] = { source, gain };
     } catch {
+      delete this.sfxDecodes[name];
       /* A missing interface effect must never block media playback. */
     }
   }
@@ -334,8 +348,10 @@ export class PlaybackEngine {
   stopSfx() {
     this.sfxSerial = (this.sfxSerial || 0) + 1;
     this.cueSerial = (this.cueSerial || 0) + 1;
+    this.accentSerial = (this.accentSerial || 0) + 1;
     this.stopVoice("sfxVoice");
     this.stopVoice("cueVoice");
+    this.stopVoice("accentVoice");
   }
   stopVoice(voiceKey) {
     if (!this[voiceKey]) return;

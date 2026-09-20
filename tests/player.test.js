@@ -539,3 +539,31 @@ test("BGM can retry after a decoding error", async () => {
   assert.equal(engine.bgmEnabled, true);
   assert.equal(context.sources.length, 1);
 });
+
+test("round accents replay and retain their tail through detents and hover", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.buffers.round = { duration: 1 };
+  engine.buffers.clack = { duration: 0.159 };
+  engine.buffers.preselect = { duration: 0.167 };
+  await engine.sfx("round");
+  const round = context.sources.at(-1);
+  await engine.sfx("clack");
+  await engine.sfx("preselect");
+  assert.equal(round.stopped, 0);
+  await engine.sfx("round");
+  assert.notEqual(engine.accentVoice.source, round);
+  engine.stopSfx();
+  assert.equal(engine.accentVoice, null);
+  assert.equal(context.sources.at(-1).stopped, 1);
+});
+
+test("rapid preselection retriggers every decoded request without a cooldown", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.buffers.preselect = { duration: 0.167 };
+  for (let i = 0; i < 8; i++) await engine.sfx("preselect");
+  assert.equal(context.sources.length, 8);
+  assert.equal(context.sources.at(-1).started, 1);
+  assert.equal(context.sources.filter((source) => source.stopped).length, 7);
+});

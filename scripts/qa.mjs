@@ -263,7 +263,7 @@ async function main() {
   const sfxAfterEnter = await evaluate(`window.__qa.sfxStarts`);
   check(
     'CRT power-on cue plays once on entry',
-    sfxAfterEnter.filter((source) => !source.loop && Math.abs(source.duration - 1 / 3) < 0.002).length === 1,
+    sfxAfterEnter.filter((source) => !source.loop && Math.abs(source.duration - 1) < 0.002).length === 1,
     `voices=${sfxAfterEnter.length}`,
   );
   const flickers = sfxAfterEnter.filter((source) => Math.abs(source.duration - 1.364127) < 0.002);
@@ -279,18 +279,18 @@ async function main() {
   `),
   );
   const motionBefore = await evaluate(`({
-    fin: getComputedStyle(document.querySelector('.signal-fin-a')).clipPath,
     trace: getComputedStyle(document.querySelector('.contour-trace')).strokeDashoffset,
     rail: getComputedStyle(document.querySelector('.chassis-bridge')).height
   })`);
   await sleepMs(600);
   check(
-    'ambient contours move and fins continuously morph',
+    'structured contour traces remain animated without random texture fins',
     await evaluate(`
-    getComputedStyle(document.querySelector('.signal-fin-a')).clipPath !== ${JSON.stringify(motionBefore.fin)} &&
+    !document.querySelector('.signal-fin,.signal-slit') &&
     getComputedStyle(document.querySelector('.contour-trace')).strokeDashoffset !== ${JSON.stringify(motionBefore.trace)}
   `),
   );
+  check('banner contours are linework, never opaque filled patches', await evaluate(`getComputedStyle(document.querySelector('.signal-contour')).fill === 'none'`));
   check(
     'pad starts in a continuous loop by default',
     sfxAfterEnter.some((source) => source.loop && Math.abs(source.duration - 60) < 0.1),
@@ -311,6 +311,15 @@ async function main() {
     'preselection triggers its own sound',
     await evaluate(`window.__qa.sfxStarts.length > ${beforeHover} && window.__qa.sfxStarts.at(-1).duration < 1`),
   );
+  const fastHovers = await evaluate(`(async () => {
+    const before = window.__qa.sfxStarts.filter(s => Math.abs(s.duration - .166667) < .002).length;
+    for (const button of document.querySelectorAll('.nav')) {
+      button.dispatchEvent(new PointerEvent('pointerover', {bubbles:true,pointerType:'mouse'}));
+      await new Promise(resolve => setTimeout(resolve,20));
+    }
+    return window.__qa.sfxStarts.filter(s => Math.abs(s.duration - .166667) < .002).length - before;
+  })()`);
+  check('rapid preselection retriggers across all four controls', fastHovers === 4);
   await click('#sfx-toggle');
   const beforeSilentHover = await evaluate(`window.__qa.sfxStarts.length`);
   const hoverVideoBox = await boxOf('[data-nav="video"]');
@@ -338,6 +347,16 @@ async function main() {
   );
   await click('#sfx-toggle');
   await shot('02-main');
+  check('overview contains the personal biography instead of the archive grid', await evaluate(`
+    document.querySelector('.biography').offsetWidth > 0 && document.querySelector('.audio-library').offsetWidth === 0 &&
+    document.querySelector('.biography').textContent.includes('Biobyte Studio')
+  `));
+  check('transport is a fixed dock outside the animated shell', await evaluate(`
+    getComputedStyle(document.querySelector('.transport')).position === 'fixed' && !document.querySelector('.shell .transport')
+  `));
+
+  await click('[data-nav="audio"]');
+  await waitFor(`document.querySelector('.shell').dataset.view === 'audio' && !document.querySelector('.workspace').inert`);
 
   console.log('· playback checks');
   await click('.track');
@@ -374,6 +393,8 @@ async function main() {
   await shot('03-audio-playing');
 
   console.log('· video playback and exclusivity');
+  await click('[data-nav="video"]');
+  await waitFor(`document.querySelector('.shell').dataset.view === 'video' && !document.querySelector('.workspace').inert`);
   await click('#video-overlay');
   await sleepMs(900);
   check('video plays from the overlay', await evaluate(`!document.querySelector('#video').paused`));
@@ -435,7 +456,7 @@ async function main() {
     code: 'Slash',
     windowsVirtualKeyCode: 191,
   });
-  await sleepMs(300);
+  await sleepMs(1800);
   check('slash focuses the search field', await evaluate(`document.activeElement === document.querySelector('#search')`));
   await cdp.send('Input.insertText', { text: '凯尔特' });
   await sleepMs(500);
@@ -466,30 +487,51 @@ async function main() {
   await click('#mute');
 
   console.log('· view morphs, language and settings');
-  await click('[data-nav="audio"]');
+  await click('[data-nav="overview"]');
   await sleepMs(420);
   check(
-    'view uses a long shutter transition',
+    'the whole content plane animates as one continuous surface',
     await evaluate(
-      `document.querySelector('.workspace').classList.contains('changing') && document.querySelector('.shell').dataset.view === 'overview'`,
+      `document.querySelector('.workspace').inert && document.querySelector('.shell').dataset.view === 'audio' && !document.querySelector('.module-shutter')`,
     ),
   );
   await shot('06-morph');
-  await waitFor(`document.querySelector('.shell').dataset.view === 'audio'`);
+  await waitFor(`document.querySelector('.shell').dataset.view === 'overview'`);
   await sleepMs(1800);
   check(
     'transition completes without a blocking shutter',
-    await evaluate(`!document.querySelector('.workspace').classList.contains('changing')`),
+    await evaluate(`!document.querySelector('.workspace').inert`),
   );
   await shot('07-audio-view');
   await click('[data-nav="video"]');
-  await click('[data-nav="about"]');
-  await waitFor(`document.querySelector('.shell').dataset.view === 'about'`);
+  await sleepMs(220);
+  const retarget = await evaluate(`(() => {
+    const workspace = document.querySelector('.workspace');
+    const animation = workspace.getAnimations()[0];
+    const before = animation.currentTime;
+    document.querySelector('[data-nav="fun"]').click();
+    const after = workspace.getAnimations()[0];
+    return { sameAnimation: animation === after, before, after: after.currentTime };
+  })()`);
+  check('a new destination preserves the running transition position', retarget.sameAnimation && Math.abs(retarget.after - retarget.before) < 1 && retarget.after > 100, JSON.stringify(retarget));
+  await waitFor(`document.querySelector('.shell').dataset.view === 'fun'`);
+  await sleepMs(220);
+  const reversal = await evaluate(`(() => {
+    const workspace = document.querySelector('.workspace');
+    const animation = workspace.getAnimations()[0];
+    const before = animation.currentTime;
+    document.querySelector('[data-nav="audio"]').click();
+    const after = workspace.getAnimations()[0];
+    return { sameAnimation: animation === after, before, after: after.currentTime };
+  })()`);
+  check('navigation during opening reverses from its current position', reversal.sameAnimation && Math.abs(reversal.after - reversal.before) < 1, JSON.stringify(reversal));
+  await evaluate(`document.querySelector('[data-nav="fun"]').click()`);
+  await waitFor(`document.querySelector('.shell').dataset.view === 'fun' && !document.querySelector('.workspace').inert`);
   await sleepMs(1800);
   check(
     'rapid navigation settles on the latest destination',
     await evaluate(
-      `document.querySelector('.nav.active').dataset.nav === 'about' && !document.querySelector('.workspace').classList.contains('changing')`,
+      `document.querySelector('.nav.active').dataset.nav === 'fun' && !document.querySelector('.workspace').inert`,
     ),
   );
   check(
@@ -498,7 +540,37 @@ async function main() {
     window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1.364127) < .002).length === 1
   `),
   );
-  await shot('08-profile');
+  console.log('· rotary motion and tactile feedback');
+  const knob = await boxOf('#rotary-knob');
+  const cx = knob.x + knob.w / 2, cy = knob.y + knob.h / 2;
+  const roundsBefore = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length`);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx + 55, y: cy, button: 'left', buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 48; i++) {
+    const angle = i / 48 * Math.PI * 2;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx + Math.cos(angle) * 55, y: cy + Math.sin(angle) * 55, button: 'left', buttons: 1 });
+    await sleepMs(20);
+  }
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx + 55, y: cy, button: 'left', buttons: 0 });
+  await sleepMs(350);
+  check('one full rotary turn triggers one round accent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length === ${roundsBefore + 1}`));
+  check('rotary emits actual canvas particles', await evaluate(`(() => { const c = document.querySelector('#rotary-particles'); const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; return d.some((v,i) => i % 4 === 3 && v > 0); })()`));
+  check('rotary detents trigger clack', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length >= 24`));
+  await shot('08-playground');
+  await evaluate(`document.querySelector('#rotary-knob').focus()`);
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 });
+  const rotaryAtStart = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
+  await sleepMs(70);
+  const rotaryDuring = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
+  check('rotary eases through intermediate angles', rotaryDuring > rotaryAtStart && rotaryDuring < 15);
+  await sleepMs(550);
+  check('rotary supports keyboard detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 15`));
+  await evaluate(`window.scrollTo({top:0,behavior:'instant'}); document.activeElement.blur()`);
+  const scrollClacks = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 72 });
+  await sleepMs(450);
+  check('wheel scrolling lands on a mechanical detent', await evaluate(`scrollY > 0 && scrollY % 56 === 0`));
+  check('scroll detents produce their own clack feedback', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length > ${scrollClacks}`));
+  check('screen noise is nonblank', await evaluate(`document.querySelector('#screen-noise').getContext('2d').getImageData(0,0,1,1).data[3] === 255`));
   await click('#system-open');
   await sleepMs(1000);
   await click('[data-language="en"]');
@@ -539,7 +611,7 @@ async function main() {
   check(
     'motion switch disables continuous motion and scanning',
     await evaluate(`
-    getComputedStyle(document.querySelector('.signal-fin-a')).animationName === 'none' &&
+    getComputedStyle(document.querySelector('#screen-noise')).display === 'none' &&
     getComputedStyle(document.querySelector('.signal-scan')).display === 'none'
   `),
   );
@@ -578,6 +650,28 @@ async function main() {
   await sleepMs(300);
   check('English layout fits a 320px screen', await evaluate(`document.documentElement.scrollWidth <= 321`));
   await shot('11-mobile-320-en');
+  for (const view of ['audio', 'video', 'fun']) {
+    await click(`[data-nav="${view}"]`);
+    await sleepMs(150);
+    check(`${view} fits a 320px screen`, await evaluate(`document.documentElement.scrollWidth <= 321`));
+  }
+  await scrollTo('#rotary-knob');
+  await shot('15-mobile-rotary');
+  const touchKnob = await boxOf('#rotary-knob');
+  const tx = touchKnob.x + touchKnob.w/2, ty = touchKnob.y + touchKnob.h/2;
+  const beforeTouch = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
+  const scrollBeforeTouch = await evaluate(`scrollY`);
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:tx+45,y:ty}]});
+  for (let i=1;i<=8;i++) {
+    const a = i/8*Math.PI/2;
+    await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:tx+45*Math.cos(a),y:ty+45*Math.sin(a)}]});
+    await sleepMs(25);
+  }
+  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+  await sleepMs(100);
+  check('touch rotates the dial without scrolling the page', await evaluate(`
+    Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === (${beforeTouch}+90)%360 && Math.abs(scrollY-${scrollBeforeTouch}) < 2
+  `));
 
   console.log('· direct English entry and OS reduced motion');
   await cdp.send('Emulation.setEmulatedMedia', {
@@ -596,11 +690,11 @@ async function main() {
       `document.documentElement.lang === 'en' && document.querySelector('#current-title').textContent === 'Orchestral Composition'`,
     ),
   );
-  await click('[data-nav="about"]');
+  await click('[data-nav="fun"]');
   check(
     'OS reduced motion bypasses long transitions',
     await evaluate(
-      `document.querySelector('.shell').dataset.view === 'about' && !document.querySelector('.workspace').classList.contains('changing')`,
+      `document.querySelector('.shell').dataset.view === 'fun' && !document.querySelector('.workspace').inert`,
     ),
   );
   await shot('13-mobile-profile-en');
