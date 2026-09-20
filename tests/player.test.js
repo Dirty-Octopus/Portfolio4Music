@@ -1,37 +1,68 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { PlaybackEngine, formatTime, clamp, FADE_SECONDS } from '../src/player.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  PlaybackEngine,
+  formatTime,
+  clamp,
+  FADE_SECONDS,
+} from "../src/player.js";
 
 class FakeParam {
-  constructor(value) { this.value = value; }
+  constructor(value) {
+    this.value = value;
+  }
   cancelAndHoldAtTime() {}
   cancelScheduledValues() {}
-  setValueAtTime(value) { this.value = value; }
-  linearRampToValueAtTime(value) { this.value = value; }
-  setTargetAtTime(value) { this.value = value; }
+  setValueAtTime(value) {
+    this.value = value;
+  }
+  linearRampToValueAtTime(value) {
+    this.value = value;
+  }
+  setTargetAtTime(value) {
+    this.value = value;
+  }
 }
 
 class FakeNode {
-  constructor() { this.gain = new FakeParam(1); this.connections = []; }
-  connect(target) { this.connections.push(target); return target; }
+  constructor() {
+    this.gain = new FakeParam(1);
+    this.connections = [];
+  }
+  connect(target) {
+    this.connections.push(target);
+    return target;
+  }
   disconnect() {}
 }
 
 class FakeBufferSource extends FakeNode {
-  constructor() { super(); this.buffer = null; this.started = 0; this.stopped = 0; this.onended = null; }
-  start() { this.started += 1; }
-  stop() { this.stopped += 1; }
+  constructor() {
+    super();
+    this.buffer = null;
+    this.started = 0;
+    this.stopped = 0;
+    this.onended = null;
+  }
+  start() {
+    this.started += 1;
+  }
+  stop() {
+    this.stopped += 1;
+  }
 }
 
 class FakeContext {
   constructor() {
     this.currentTime = 0;
-    this.state = 'suspended';
+    this.state = "suspended";
     this.destination = new FakeNode();
     this.resumeCalls = 0;
     this.sources = [];
   }
-  createGain() { return new FakeNode(); }
+  createGain() {
+    return new FakeNode();
+  }
   createAnalyser() {
     const node = new FakeNode();
     node.fftSize = 0;
@@ -39,14 +70,22 @@ class FakeContext {
     node.getByteFrequencyData = () => {};
     return node;
   }
-  createMediaElementSource() { return new FakeNode(); }
+  createMediaElementSource() {
+    return new FakeNode();
+  }
   createBufferSource() {
     const source = new FakeBufferSource();
     this.sources.push(source);
     return source;
   }
-  decodeAudioData() { return Promise.resolve({ duration: 0.1 }); }
-  resume() { this.resumeCalls += 1; this.state = 'running'; return Promise.resolve(); }
+  decodeAudioData() {
+    return Promise.resolve({ duration: 0.1 });
+  }
+  resume() {
+    this.resumeCalls += 1;
+    this.state = "running";
+    return Promise.resolve();
+  }
 }
 
 class FakeMedia extends EventTarget {
@@ -63,33 +102,45 @@ class FakeMedia extends EventTarget {
     this.loadCalls = 0;
     this.attributes = {};
   }
-  get currentTime() { return this._time; }
+  get currentTime() {
+    return this._time;
+  }
   set currentTime(value) {
     this._time = value;
     this.seeking = true;
     queueMicrotask(() => {
       this.seeking = false;
-      this.dispatchEvent(new Event('seeked'));
+      this.dispatchEvent(new Event("seeked"));
     });
   }
-  get src() { return this.attributes.src || ''; }
-  set src(value) { this.attributes.src = value; }
-  getAttribute(name) { return this.attributes[name] ?? null; }
-  setAttribute(name, value) { this.attributes[name] = value; }
-  load() { this.loadCalls += 1; }
+  get src() {
+    return this.attributes.src || "";
+  }
+  set src(value) {
+    this.attributes.src = value;
+  }
+  getAttribute(name) {
+    return this.attributes[name] ?? null;
+  }
+  setAttribute(name, value) {
+    this.attributes[name] = value;
+  }
+  load() {
+    this.loadCalls += 1;
+  }
   play() {
     this.playCalls += 1;
     this.paused = false;
     this.ended = false;
-    this.dispatchEvent(new Event('play'));
-    this.dispatchEvent(new Event('playing'));
+    this.dispatchEvent(new Event("play"));
+    this.dispatchEvent(new Event("playing"));
     return Promise.resolve();
   }
   pause() {
     if (this.paused) return;
     this.pauseCalls += 1;
     this.paused = true;
-    this.dispatchEvent(new Event('pause'));
+    this.dispatchEvent(new Event("pause"));
   }
 }
 
@@ -105,161 +156,161 @@ function makeEngine(options = {}) {
     contextFactory: () => context,
     wait: async () => {},
     onChange: () => changes.push(1),
-    onError: message => errors.push(message),
+    onError: (message) => errors.push(message),
     ...options,
   });
   return { engine, audio, video, context, errors, changes };
 }
 
-test('formatTime pads minutes and seconds', () => {
-  assert.equal(formatTime(0), '00:00');
-  assert.equal(formatTime(61), '01:01');
-  assert.equal(formatTime(3599), '59:59');
-  assert.equal(formatTime(-5), '00:00');
-  assert.equal(formatTime(Number.NaN), '00:00');
+test("formatTime pads minutes and seconds", () => {
+  assert.equal(formatTime(0), "00:00");
+  assert.equal(formatTime(61), "01:01");
+  assert.equal(formatTime(3599), "59:59");
+  assert.equal(formatTime(-5), "00:00");
+  assert.equal(formatTime(Number.NaN), "00:00");
 });
 
-test('clamp coerces and bounds values', () => {
+test("clamp coerces and bounds values", () => {
   assert.equal(clamp(5, 0, 10), 5);
   assert.equal(clamp(-1, 0, 10), 0);
   assert.equal(clamp(11, 0, 10), 10);
-  assert.equal(clamp('abc', 0, 10), 0);
-  assert.equal(clamp('0.5', 0, 1), 0.5);
+  assert.equal(clamp("abc", 0, 10), 0);
+  assert.equal(clamp("0.5", 0, 1), 0.5);
 });
 
-test('unlock initializes the graph and resumes synchronously', async () => {
+test("unlock initializes the graph and resumes synchronously", async () => {
   const { engine, context } = makeEngine();
   const resumed = engine.unlock();
   assert.equal(context.resumeCalls, 1);
   await resumed;
-  assert.equal(context.state, 'running');
+  assert.equal(context.state, "running");
   assert.equal(engine.master.gain.value, 0.65);
   assert.ok(engine.gains.audio);
   assert.ok(engine.gains.video);
   assert.ok(engine.analyser);
 });
 
-test('play sets the source, plays, and ramps gain in', async () => {
+test("play sets the source, plays, and ramps gain in", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  assert.equal(audio.getAttribute('src'), 'media/a.mp3');
+  await engine.play("audio", "media/a.mp3");
+  assert.equal(audio.getAttribute("src"), "media/a.mp3");
   assert.equal(audio.playCalls, 1);
   assert.equal(audio.paused, false);
-  assert.equal(engine.active, 'audio');
+  assert.equal(engine.active, "audio");
   assert.equal(engine.gains.audio.gain.value, 1);
 });
 
-test('play reuses the source when it already matches', async () => {
+test("play reuses the source when it already matches", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  await engine.pause('audio');
-  await engine.play('audio', 'media/a.mp3');
+  await engine.play("audio", "media/a.mp3");
+  await engine.pause("audio");
+  await engine.play("audio", "media/a.mp3");
   assert.equal(audio.loadCalls, 1);
   assert.equal(audio.playCalls, 2);
 });
 
-test('starting video pauses audio (no overlapping playback)', async () => {
+test("starting video pauses audio (no overlapping playback)", async () => {
   const { engine, audio, video } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  await engine.play('video');
+  await engine.play("audio", "media/a.mp3");
+  await engine.play("video");
   assert.equal(audio.paused, true);
   assert.equal(video.paused, false);
-  assert.equal(engine.active, 'video');
+  assert.equal(engine.active, "video");
 });
 
-test('starting audio pauses video', async () => {
+test("starting audio pauses video", async () => {
   const { engine, audio, video } = makeEngine();
-  await engine.play('video');
-  await engine.play('audio', 'media/a.mp3');
+  await engine.play("video");
+  await engine.play("audio", "media/a.mp3");
   assert.equal(video.paused, true);
   assert.equal(audio.paused, false);
 });
 
-test('external media control cannot create overlapping playback', async () => {
+test("external media control cannot create overlapping playback", async () => {
   const { engine, audio, video } = makeEngine();
-  await engine.play('video');
+  await engine.play("video");
   await audio.play();
   assert.equal(video.paused, true);
   assert.equal(audio.paused, false);
-  assert.equal(engine.active, 'audio');
+  assert.equal(engine.active, "audio");
 });
 
-test('rapid track switches only start the last request', async () => {
+test("rapid track switches only start the last request", async () => {
   const { engine, audio } = makeEngine();
-  const first = engine.play('audio', 'media/one.mp3');
-  const second = engine.play('audio', 'media/two.mp3');
+  const first = engine.play("audio", "media/one.mp3");
+  const second = engine.play("audio", "media/two.mp3");
   await Promise.all([first, second]);
-  assert.equal(audio.getAttribute('src'), 'media/two.mp3');
+  assert.equal(audio.getAttribute("src"), "media/two.mp3");
   assert.equal(audio.playCalls, 1);
-  assert.equal(engine.active, 'audio');
+  assert.equal(engine.active, "audio");
 });
 
-test('seek keeps a paused element paused', async () => {
+test("seek keeps a paused element paused", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  await engine.pause('audio');
+  await engine.play("audio", "media/a.mp3");
+  await engine.pause("audio");
   const calls = audio.playCalls;
-  await engine.seek('audio', 30);
+  await engine.seek("audio", 30);
   assert.equal(audio.currentTime, 30);
   assert.equal(audio.paused, true);
   assert.equal(audio.playCalls, calls);
 });
 
-test('seek resumes a playing element', async () => {
+test("seek resumes a playing element", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  await engine.seek('audio', 30, true);
+  await engine.play("audio", "media/a.mp3");
+  await engine.seek("audio", 30, true);
   assert.equal(audio.currentTime, 30);
   assert.equal(audio.paused, false);
-  assert.equal(engine.active, 'audio');
+  assert.equal(engine.active, "audio");
 });
 
-test('seek clamps to the media duration', async () => {
+test("seek clamps to the media duration", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
-  await engine.seek('audio', 9999);
+  await engine.play("audio", "media/a.mp3");
+  await engine.seek("audio", 9999);
   assert.equal(audio.currentTime, 60 - 0.015);
 });
 
-test('toggle plays when paused and pauses when playing', async () => {
+test("toggle plays when paused and pauses when playing", async () => {
   const { engine } = makeEngine();
-  await engine.toggle('audio');
-  assert.equal(engine.active, 'audio');
-  await engine.toggle('audio');
+  await engine.toggle("audio");
+  assert.equal(engine.active, "audio");
+  await engine.toggle("audio");
   assert.equal(engine.active, null);
 });
 
-test('repeat replays the audio track after it ends', async () => {
+test("repeat replays the audio track after it ends", async () => {
   const { engine, audio } = makeEngine();
   engine.repeat = true;
-  await engine.play('audio', 'media/a.mp3');
+  await engine.play("audio", "media/a.mp3");
   const calls = audio.playCalls;
   audio.ended = true;
-  audio.dispatchEvent(new Event('ended'));
+  audio.dispatchEvent(new Event("ended"));
   await engine.queue;
   assert.equal(audio.currentTime, 0);
   assert.equal(audio.playCalls, calls + 1);
   assert.equal(audio.paused, false);
 });
 
-test('ended without repeat clears the active track', async () => {
+test("ended without repeat clears the active track", async () => {
   const { engine, audio } = makeEngine();
-  await engine.play('audio', 'media/a.mp3');
+  await engine.play("audio", "media/a.mp3");
   audio.ended = true;
-  audio.dispatchEvent(new Event('ended'));
+  audio.dispatchEvent(new Event("ended"));
   await engine.queue;
   assert.equal(engine.active, null);
 });
 
-test('media errors surface through onError', () => {
+test("media errors surface through onError", () => {
   const { engine, audio, errors } = makeEngine();
   audio.error = { code: 4 };
-  audio.dispatchEvent(new Event('error'));
+  audio.dispatchEvent(new Event("error"));
   assert.equal(errors.length, 1);
-  assert.ok(errors[0].includes('媒体加载失败'));
+  assert.ok(errors[0].includes("媒体加载失败"));
 });
 
-test('volume and mute drive the master gain', async () => {
+test("volume and mute drive the master gain", async () => {
   const { engine } = makeEngine();
   await engine.unlock();
   engine.setVolume(0.4);
@@ -270,34 +321,37 @@ test('volume and mute drive the master gain', async () => {
   assert.equal(engine.master.gain.value, 0.4);
 });
 
-test('sfx preloads, decodes once, and never stacks voices', async () => {
+test("sfx preloads, decodes once, and never stacks voices", async () => {
   const { engine, context } = makeEngine();
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+  globalThis.fetch = async () => ({
+    ok: true,
+    arrayBuffer: async () => new ArrayBuffer(8),
+  });
   try {
-    await engine.preloadSfx({ clickeffect: '/media/clickeffect.wav' });
+    await engine.preloadSfx({ clickeffect: "/media/clickeffect.wav" });
   } finally {
     globalThis.fetch = originalFetch;
   }
   assert.ok(engine.rawSfx.clickeffect instanceof ArrayBuffer);
   await engine.unlock();
-  await engine.sfx('clickeffect');
-  await engine.sfx('clickeffect');
+  await engine.sfx("clickeffect");
+  await engine.sfx("clickeffect");
   assert.equal(context.sources.length, 2);
   assert.equal(context.sources[0].stopped, 1);
   assert.equal(context.sources[1].stopped, 0);
   assert.equal(context.sources[1].started, 1);
 });
 
-test('sfx is silent when disabled', async () => {
+test("sfx is silent when disabled", async () => {
   const { engine, context } = makeEngine();
   engine.rawSfx = { clickeffect: new ArrayBuffer(8) };
   engine.sfxEnabled = false;
   await engine.unlock();
-  await engine.sfx('clickeffect');
+  await engine.sfx("clickeffect");
   assert.equal(context.sources.length, 0);
 });
 
-test('gain fades are short enough to mask transport discontinuities', () => {
+test("gain fades are short enough to mask transport discontinuities", () => {
   assert.ok(FADE_SECONDS > 0 && FADE_SECONDS <= 0.05);
 });
