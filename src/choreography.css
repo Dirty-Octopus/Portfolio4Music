@@ -1,0 +1,914 @@
+/* CRT ignition, interlocking chassis, and asynchronous signal activity. */
+:root {
+  --oxide: #b7776d;
+  --phosphor: #d4e4e7;
+  --cut-control: polygon(
+    10px 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% 100%,
+    0 100%,
+    0 10px
+  );
+}
+.shell {
+  position: relative;
+}
+.masthead {
+  border-bottom: 0;
+}
+.identity-mark {
+  clip-path: polygon(0 0, 80% 0, 100% 22%, 100% 100%, 15% 100%, 0 82%);
+}
+.nav {
+  clip-path: var(--cut-control);
+  padding-top: 11px;
+  transition:
+    background 0.35s,
+    clip-path 0.75s var(--ease-machine);
+}
+.nav > span {
+  right: 18px;
+  top: 5px;
+}
+.nav::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 24px;
+  height: 3px;
+  background: var(--oxide);
+  transform: rotate(45deg) translate(7px, 3px);
+  transform-origin: right;
+}
+.nav:is(:hover, :focus-visible),
+.nav.active {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 7px),
+    calc(100% - 7px) 100%,
+    0 100%
+  );
+}
+.nav:is(:hover, :focus-visible) b {
+  animation: contact-acquire 0.85s both;
+}
+.nav.active::before {
+  animation: carrier-flicker 8.7s 2s steps(1) infinite;
+}
+.nav.active::after {
+  height: 5px;
+}
+.nav:focus-visible,
+.enter-button:focus-visible,
+.metal-button:focus-visible,
+.play-button:focus-visible {
+  outline-offset: -4px;
+}
+.sfx-toggle,
+.system-open {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    0 100%
+  );
+  border-bottom: 2px solid #627c86;
+}
+.sfx-toggle:is(:hover, :focus-visible) svg,
+.system-open:is(:hover, :focus-visible) svg {
+  animation: contact-acquire 0.85s both;
+}
+.enter-button,
+.metal-button,
+.play-button {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 13px) 0,
+    100% 13px,
+    100% 100%,
+    9px 100%,
+    0 calc(100% - 9px)
+  );
+}
+.enter-button {
+  padding-right: 20px;
+  transition:
+    background 0.4s,
+    clip-path 0.8s var(--ease-machine);
+}
+.enter-button:hover {
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+}
+.enter-button:hover svg,
+.metal-button:hover .button-arrow {
+  animation: launch-vector 1.3s var(--ease) both;
+}
+.hero,
+.shell:not([data-view="overview"]) .hero {
+  border-bottom: 0;
+  clip-path: polygon(
+    18px 0,
+    100% 0,
+    100% calc(100% - 20px),
+    calc(100% - 20px) 100%,
+    0 100%,
+    0 18px
+  );
+}
+.hero::after {
+  display: block;
+  inset: 0;
+  width: auto;
+  height: auto;
+  z-index: 5;
+  background: #d4e4e7;
+  opacity: 0;
+  transform: none;
+}
+.hero-bottom {
+  clip-path: polygon(
+    0 0,
+    48% 0,
+    calc(48% + 12px) 8px,
+    100% 8px,
+    100% 100%,
+    0 100%
+  );
+  min-height: 24px;
+  padding-top: 9px;
+  padding-right: 28px;
+}
+.hero-side {
+  border-right: 1px solid #92a8b74d;
+}
+.hero .scanlines {
+  animation: raster-drift 9s linear infinite;
+}
+.signal-assembly {
+  position: absolute;
+  inset: 0 0 0 45%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.signal-fin {
+  position: absolute;
+  width: 82%;
+  height: 58px;
+  right: -9%;
+  background: #9cafb94f;
+  border-top: 1px solid #c5d5dc99;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 48% 100%, 40% 25%, 7% 25%);
+}
+.signal-fin-a {
+  top: 0;
+  animation: fin-deploy 17s var(--ease-machine) infinite;
+}
+.signal-fin-b {
+  bottom: 18px;
+  transform: rotate(180deg);
+  background: #243239a6;
+  animation: fin-return 21s 3s var(--ease-machine) infinite;
+}
+.signal-contour {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  color: #b7ccd5;
+  overflow: visible;
+}
+.contour-frame {
+  stroke: currentColor;
+  stroke-width: 0.65;
+  opacity: 0.32;
+  animation: contour-displace 14s var(--ease-machine) infinite;
+}
+.contour-trace {
+  stroke: var(--phosphor);
+  stroke-width: 1.8;
+  stroke-dasharray: 7 93;
+  animation: circuit-trace 9.5s linear infinite;
+}
+.contour-trace path:nth-child(2) {
+  stroke: var(--oxide);
+  stroke-dasharray: 3 97;
+  stroke-dashoffset: 31;
+}
+.contour-bracket {
+  stroke: var(--phosphor);
+  stroke-width: 1;
+  opacity: 0.6;
+  transform-origin: 398px 142px;
+  animation: bracket-acquire 13s 1.4s var(--ease-machine) infinite;
+}
+.signal-slit {
+  position: absolute;
+  left: 10%;
+  right: 4%;
+  top: 32%;
+  height: 48%;
+  background: url("/art/expansions.webp") 70% 48% / 900px auto;
+  filter: grayscale(1) contrast(1.2);
+  clip-path: polygon(0 46%, 69% 30%, 100% 0, 100% 9%, 70% 38%, 0 50%);
+  opacity: 0;
+  animation: signal-fracture 18s 6s linear infinite;
+}
+.signal-scan {
+  position: absolute;
+  inset: 0;
+  background: #ccdde017;
+  border-left: 1px solid #d0e2e766;
+  clip-path: polygon(0 0, 2% 0, 32% 100%, 30% 100%);
+  animation: sector-scan 12s 2s var(--ease-machine) infinite;
+}
+.chassis-bridge {
+  height: 17px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  overflow: hidden;
+  background: #151d22;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    calc(100% - 17px) 100%,
+    64% 100%,
+    calc(64% - 10px) 6px,
+    22% 6px,
+    calc(22% - 10px) 100%,
+    0 100%
+  );
+  border-top: 2px solid #9bafb8;
+}
+.chassis-bridge::before,
+.chassis-bridge::after {
+  content: "";
+  position: absolute;
+  height: 3px;
+  top: 0;
+  background: var(--oxide);
+}
+.chassis-bridge::before {
+  width: 14%;
+  left: 0;
+  animation: bridge-carriage 14s var(--ease-machine) infinite;
+}
+.chassis-bridge::after {
+  width: 11%;
+  right: 2%;
+  background: #758d97;
+}
+.chassis-bridge > i {
+  width: 16px;
+  height: 12px;
+  transform: skewX(-35deg);
+  background: #9bafb866;
+}
+.chassis-bridge > i:first-child {
+  margin-left: 72%;
+}
+.chassis-rail {
+  position: absolute;
+  top: 102px;
+  bottom: 46px;
+  width: 14px;
+  pointer-events: none;
+  border-top: 1px solid #8ba0ac;
+  border-bottom: 1px solid #8ba0ac;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 9px,
+    #74818c4d 9px 10px
+  );
+}
+.chassis-rail-left {
+  left: -24px;
+  border-left: 1px solid #53616a;
+}
+.chassis-rail-right {
+  right: -24px;
+  border-right: 1px solid #53616a;
+}
+.chassis-rail i {
+  display: block;
+  height: 48px;
+  margin-bottom: 14px;
+  background: #70848d;
+  clip-path: polygon(0 0, 100% 10px, 100% 100%, 0 calc(100% - 10px));
+}
+.chassis-rail i:first-child {
+  background: var(--oxide);
+  animation: rail-piston 15s var(--ease-machine) infinite;
+}
+.chassis-rail-right i:first-child {
+  animation-delay: -7s;
+}
+.chassis-rail i:nth-child(2) {
+  height: 10px;
+}
+.chassis-rail i:nth-child(3) {
+  height: 5px;
+}
+.panel-label,
+.library-heading {
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+.section-bar {
+  clip-path: polygon(
+    0 0,
+    31% 0,
+    calc(31% + 10px) 5px,
+    100% 5px,
+    100% 100%,
+    0 100%
+  );
+  height: 33px;
+  padding-top: 5px;
+}
+.filter {
+  transition:
+    background 0.3s,
+    color 0.3s;
+}
+.filter > span {
+  transition: transform 0.55s var(--ease);
+}
+.filter:is(:hover, :focus-visible) > span {
+  transform: translateX(4px);
+}
+.filter.active {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 9px),
+    calc(100% - 9px) 100%,
+    0 100%
+  );
+}
+.track-text {
+  transition: transform 0.6s var(--ease);
+}
+.track:is(:hover, :focus-visible) .track-text {
+  transform: translateX(5px);
+}
+.track:is(:hover, :focus-visible) .track-index {
+  animation: contact-acquire 0.85s both;
+}
+.track.playing::after {
+  animation: carrier-flicker 7.5s 1s steps(1) infinite;
+}
+.transport {
+  position: relative;
+  border-top: 0;
+}
+.transport::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 9px;
+  background: #a3b6bf;
+  clip-path: polygon(
+    0 0,
+    36% 0,
+    calc(36% + 10px) 6px,
+    75% 6px,
+    calc(75% + 10px) 0,
+    100% 0,
+    100% 3px,
+    calc(75% + 12px) 3px,
+    calc(75% + 2px) 9px,
+    calc(36% - 2px) 9px,
+    calc(36% - 12px) 3px,
+    0 3px
+  );
+}
+.transport.changing-track .wave-deck {
+  animation: deck-translate 1.2s var(--ease-machine) both;
+}
+.transport.changing-track .output {
+  animation: contact-acquire 1s 0.25s both;
+}
+.workspace.changing .module-shutter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #d7e3e9;
+  opacity: 0;
+  animation: shutter-contact 1.9s both;
+}
+.workspace.changing .module-shutter > i:nth-child(2) {
+  animation-delay: 0.09s;
+}
+.workspace.changing .module-shutter > i:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.shell.switching .signal-assembly {
+  animation: array-reposition 1.9s var(--ease-machine) both;
+}
+.site-enter .nav {
+  animation: nav-dock 1.55s 0.3s var(--ease) both;
+}
+.site-enter .nav:nth-child(2) {
+  animation-delay: 0.46s;
+}
+.site-enter .nav:nth-child(3) {
+  animation-delay: 0.64s;
+}
+.site-enter .nav:nth-child(4) {
+  animation-delay: 0.9s;
+}
+.site-enter .hero::after {
+  animation: phosphor-ignite 1.5s both;
+}
+.site-enter .chassis-bridge {
+  animation: rail-assemble 2.2s 0.3s var(--ease-machine) both;
+}
+.site-enter .signal-assembly {
+  animation: array-reposition 2.4s 0.5s var(--ease-machine) both;
+}
+.boot-circuit {
+  position: absolute;
+  inset: 16% -6% 16% 58%;
+  pointer-events: none;
+  opacity: 0.5;
+}
+.boot-circuit i {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border: 1px solid #8aa1b24d;
+  border-left: 3px solid var(--oxide);
+  transform: skewX(-23deg);
+  animation: boot-orbit 19s var(--ease-machine) infinite;
+}
+.boot-circuit i:nth-child(2) {
+  inset: 15% 9%;
+  animation-delay: -5s;
+  border-left-color: #9babb3;
+}
+.boot-circuit i:nth-child(3) {
+  inset: 28% 16%;
+  animation-delay: -10s;
+  border-left-color: #9babb3;
+}
+.crt-power {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+}
+.crt-power::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #111b22;
+}
+.crt-power i {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 50%;
+  height: 2px;
+  background: #deecee;
+  box-shadow: 0 0 12px 3px #c4e1ed77;
+}
+.boot.booting .crt-power {
+  animation: crt-power 0.95s linear both;
+}
+.boot.booting .crt-power::before {
+  animation: crt-aperture 0.95s var(--ease) both;
+}
+.boot.booting .crt-power i {
+  animation: crt-line 0.95s var(--ease) both;
+}
+.boot.booting .boot-center {
+  animation: boot-lock 1.5s 0.1s both;
+}
+
+@keyframes contact-acquire {
+  0% {
+    opacity: 0.5;
+    transform: translateX(-3px);
+  }
+  28% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+  57% {
+    opacity: 0.65;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes carrier-flicker {
+  0%,
+  8%,
+  22%,
+  100% {
+    opacity: 1;
+  }
+  5%,
+  17% {
+    opacity: 0.2;
+  }
+}
+@keyframes launch-vector {
+  0% {
+    transform: translate(0, 0);
+  }
+  22% {
+    transform: translate(-3px, 3px);
+  }
+  60% {
+    transform: translate(5px, -5px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes raster-drift {
+  to {
+    background-position: 0 40px;
+  }
+}
+@keyframes fin-deploy {
+  0%,
+  15%,
+  100% {
+    transform: translateX(0);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 48% 100%, 40% 25%, 7% 25%);
+  }
+  30%,
+  58% {
+    transform: translateX(-16%);
+    clip-path: polygon(0 0, 100% 0, 100% 30%, 67% 30%, 58% 85%, 14% 85%);
+  }
+  73%,
+  84% {
+    transform: translateX(-6%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 37% 100%, 29% 35%, 7% 35%);
+  }
+}
+@keyframes fin-return {
+  0%,
+  20%,
+  100% {
+    transform: rotate(180deg) translateX(0);
+  }
+  42%,
+  66% {
+    transform: rotate(180deg) translateX(18%);
+  }
+}
+@keyframes contour-displace {
+  0%,
+  15%,
+  100% {
+    transform: translate(0, 0);
+  }
+  38%,
+  64% {
+    transform: translate(-14px, 8px);
+  }
+  82% {
+    transform: translate(4px, -3px);
+  }
+}
+@keyframes circuit-trace {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes bracket-acquire {
+  0%,
+  12%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  35%,
+  52% {
+    transform: scale(0.6, 1.3) translateX(-35px);
+    opacity: 0.8;
+  }
+  76%,
+  86% {
+    transform: scale(1.1, 0.8);
+    opacity: 0.35;
+  }
+}
+@keyframes signal-fracture {
+  0%,
+  6%,
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  1% {
+    opacity: 0.7;
+    transform: translateX(-12px);
+  }
+  3% {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  4% {
+    opacity: 0.4;
+    transform: translateX(-4px);
+  }
+}
+@keyframes sector-scan {
+  0%,
+  12% {
+    transform: translateX(-40%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  65% {
+    transform: translateX(105%);
+    opacity: 0.6;
+  }
+  66%,
+  100% {
+    transform: translateX(105%);
+    opacity: 0;
+  }
+}
+@keyframes bridge-carriage {
+  0%,
+  12%,
+  100% {
+    transform: translateX(0);
+  }
+  35%,
+  51% {
+    transform: translateX(240%);
+  }
+  73%,
+  87% {
+    transform: translateX(540%);
+  }
+}
+@keyframes rail-piston {
+  0%,
+  18%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  42%,
+  60% {
+    transform: translateY(166px) scaleY(0.45);
+  }
+  78% {
+    transform: translateY(85px) scaleY(1.2);
+  }
+}
+@keyframes deck-translate {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  22% {
+    transform: translateX(9px);
+    opacity: 0.3;
+  }
+  65% {
+    transform: translateX(-3px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+@keyframes shutter-contact {
+  0%,
+  33%,
+  52%,
+  100% {
+    opacity: 0;
+  }
+  38% {
+    opacity: 0.2;
+  }
+  47% {
+    opacity: 0.07;
+  }
+}
+@keyframes array-reposition {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  26% {
+    transform: translateX(55%);
+    opacity: 0.15;
+  }
+  63% {
+    transform: translateX(-9%);
+    opacity: 0.65;
+  }
+  82% {
+    transform: translateX(2%);
+    opacity: 1;
+  }
+}
+@keyframes nav-dock {
+  0% {
+    transform: translateY(-20px) scaleX(0.35);
+    opacity: 0.2;
+  }
+  65% {
+    transform: translateY(2px) scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes phosphor-ignite {
+  0% {
+    opacity: 0.24;
+    clip-path: inset(48% 0);
+  }
+  22% {
+    opacity: 0.1;
+    clip-path: inset(0);
+  }
+  45% {
+    opacity: 0;
+    clip-path: inset(0);
+  }
+  63% {
+    opacity: 0.08;
+    clip-path: inset(40% 0 58%);
+  }
+  100% {
+    opacity: 0;
+    clip-path: inset(0);
+  }
+}
+@keyframes boot-orbit {
+  0%,
+  100% {
+    transform: skewX(-23deg) translateX(0);
+  }
+  45%,
+  65% {
+    transform: skewX(-12deg) translateX(10%);
+  }
+}
+@keyframes crt-power {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes crt-aperture {
+  0% {
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% 100%,
+      0 100%,
+      0 51%,
+      100% 51%,
+      100% 49%,
+      0 49%
+    );
+  }
+  100% {
+    clip-path: polygon(
+      0 0,
+      100% 0,
+      100% 100%,
+      0 100%,
+      0 100%,
+      100% 100%,
+      100% 0,
+      0 0
+    );
+  }
+}
+@keyframes crt-line {
+  0% {
+    transform: scaleX(0.03);
+    opacity: 1;
+  }
+  28% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  62% {
+    transform: scaleX(1);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+@keyframes boot-lock {
+  0% {
+    transform: scaleY(0.93) translateX(-4px);
+    opacity: 0.4;
+  }
+  30% {
+    transform: scaleY(1.02) translateX(2px);
+    opacity: 1;
+  }
+  63% {
+    transform: scaleY(1) translateX(0);
+    opacity: 0.7;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+body.boot-visible .signal-assembly *,
+body.boot-visible .chassis-bridge::before,
+body.boot-visible .chassis-rail i,
+body.boot-visible .hero .scanlines,
+body.page-hidden *,
+body.page-hidden *::before,
+body.page-hidden *::after {
+  animation-play-state: paused !important;
+}
+@media (max-width: 1280px) {
+  .chassis-rail {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .nav {
+    padding: 10px 8px 8px;
+  }
+  .signal-assembly {
+    left: 32%;
+    opacity: 0.65;
+  }
+  .signal-contour {
+    width: 420px;
+    right: -150px;
+  }
+  .signal-fin {
+    width: 100%;
+  }
+  .hero-bottom {
+    clip-path: none;
+    padding-top: 5px;
+  }
+  .chassis-bridge {
+    height: 12px;
+  }
+  .section-bar {
+    clip-path: none;
+  }
+  .boot-circuit {
+    left: 78%;
+    opacity: 0.3;
+  }
+  .track:is(:hover, :focus-visible) .track-text {
+    transform: translateX(2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crt-power,
+  .signal-slit,
+  .signal-scan {
+    display: none;
+  }
+}
+body.motion-off .crt-power,
+body.motion-off .signal-slit,
+body.motion-off .signal-scan {
+  display: none;
+}

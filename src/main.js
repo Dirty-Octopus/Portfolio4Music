@@ -2,6 +2,9 @@ import "@fontsource/barlow-condensed/latin-500.css";
 import "@fontsource/barlow-condensed/latin-600.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "./style.css";
+import "./forum.css";
+import "./choreography.css";
+import { t, trackTitle, setLanguage } from "./i18n.js";
 import {
   initInterface,
   changeView,
@@ -22,7 +25,9 @@ import fullIcon from "@phosphor-icons/core/assets/regular/corners-out.svg?raw";
 import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-up-right.svg?raw";
 import slidersIcon from "@phosphor-icons/core/assets/regular/sliders-horizontal.svg?raw";
 import expandIcon from "@phosphor-icons/core/assets/regular/arrows-out-simple.svg?raw";
+import musicIcon from "@phosphor-icons/core/assets/regular/music-notes.svg?raw";
 const icons = {
+  "music-notes": musicIcon,
   "sliders-horizontal": slidersIcon,
   "arrows-out-simple": expandIcon,
   play: playIcon,
@@ -74,6 +79,9 @@ let category = "all",
 let toastTimer,
   savedVolume = 0.65;
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+document.addEventListener("visibilitychange", () => {
+  document.body.classList.toggle("page-hidden", document.hidden);
+});
 function toast(message) {
   $("#toast").textContent = message;
   $("#toast").classList.add("visible");
@@ -85,13 +93,32 @@ const engine = new PlaybackEngine({
   video,
   onChange: updatePlayback,
   onError: (message) => {
-    toast(message);
-    $("#system-status").textContent = "PLAYBACK ERROR / 请重试";
+    const messages = {
+      "媒体加载失败，请检查网络后重新点击播放。":
+        "Media could not load. Check your connection and try again.",
+      "无法播放，请再次点击播放按钮。":
+        "Playback could not start. Please try again.",
+      "背景音乐加载失败，请重试。":
+        "Background music could not load. Please try again.",
+    };
+    toast(t(message, messages[message] || message));
+    $("#system-status").textContent = t(
+      "播放错误 / 请重试",
+      "PLAYBACK ERROR / RETRY",
+    );
   },
+});
+const cueReady = engine.preloadSfx({
+  bootupcrt: asset("media/bootupcrt.wav"),
+  flicker: asset("media/flicker.wav"),
 });
 const sfxReady = engine.preloadSfx(
   Object.fromEntries(
-    Object.entries(manifest.sfx).map(([key, path]) => [key, asset(path)]),
+    Object.entries({
+      ...manifest.sfx,
+      preselect: "media/preselect.wav",
+      pad: "media/pad.wav",
+    }).map(([key, path]) => [key, asset(path)]),
   ),
 );
 video.src = asset(manifest.videos[0].src);
@@ -99,41 +126,45 @@ video.poster = asset(manifest.videos[0].poster);
 audio.src = asset(current.src);
 $("#video-duration").textContent = formatTime(manifest.videos[0].duration);
 $("#year").textContent = new Date().getFullYear();
-$("#filters").innerHTML = categories
-  .map(
-    ([key, label, en]) =>
-      `<button class="filter ${key === category ? "active" : ""}" data-category="${key}" aria-pressed="${key === category}"><span>${label}<small>${en}</small></span><small>${String(manifest.tracks.filter((t) => (key === "all" ? t.category !== "sfx" : t.category === key)).length).padStart(2, "0")}</small></button>`,
-  )
-  .join("");
+function renderFilters() {
+  $("#filters").innerHTML = categories
+    .map(
+      ([key, label, en]) =>
+        `<button class="filter ${key === category ? "active" : ""}" data-category="${key}" aria-pressed="${key === category}"><span>${t(label, en)}<small>${t(en, "DIRTY OCTOPUS")}</small></span><small>${String(manifest.tracks.filter((t) => (key === "all" ? t.category !== "sfx" : t.category === key)).length).padStart(2, "0")}</small></button>`,
+    )
+    .join("");
+}
+renderFilters();
 function labelFor(key) {
-  return categories.find((c) => c[0] === key)?.[2] || key.toUpperCase();
+  const entry = categories.find((c) => c[0] === key);
+  return entry ? t(entry[1], entry[2]) : key.toUpperCase();
 }
 function renderTracks() {
   filtered = manifest.tracks.filter(
     (t) =>
       (category === "all" ? t.category !== "sfx" : t.category === category) &&
-      `${t.title} ${t.filename}`.toLowerCase().includes(query),
+      `${t.title} ${trackTitle(t)} ${t.filename}`.toLowerCase().includes(query),
   );
   const cat = categories.find((c) => c[0] === category);
-  $("#category-title").innerHTML = `${cat[1]} <span>${cat[2]}</span>`;
+  $("#category-title").textContent = t(cat[1], cat[2]);
   $("#result-count").textContent =
-    `${String(filtered.length).padStart(2, "0")} FILES`;
+    `${String(filtered.length).padStart(2, "0")} ${t("个文件", "FILES")}`;
   $("#library-summary").textContent =
-    `${filtered.length} TRACKS / ${formatTime(filtered.reduce((s, t) => s + t.duration, 0))} TOTAL`;
+    `${filtered.length} ${t("个作品", "TRACKS")} / ${formatTime(filtered.reduce((s, t) => s + t.duration, 0))} ${t("总时长", "TOTAL")}`;
   $("#track-list").innerHTML = filtered.length
     ? filtered
         .map(
           (track, index) =>
-            `<button class="track reveal${track.id === current.id ? " selected" : ""}" style="--i:${Math.min(index, 7)}" data-track="${track.id}" aria-label="播放 ${escapeHTML(track.title)}" aria-pressed="${track.id === current.id}"><span class="track-index">${String(index + 1).padStart(2, "0")}</span><span class="track-text"><span class="track-name">${escapeHTML(track.title)}</span><span class="track-category">${labelFor(track.category)}</span></span><span class="track-format">${track.format}</span><span class="track-length">${formatTime(track.duration)}</span></button>`,
+            `<button class="track reveal${track.id === current.id ? " selected" : ""}" style="--i:${Math.min(index, 7)}" data-track="${track.id}" aria-label="${t("播放", "Play")} ${escapeHTML(trackTitle(track))}" aria-pressed="${track.id === current.id}"><span class="track-index">${String(index + 1).padStart(2, "0")}</span><span class="track-text"><span class="track-name">${escapeHTML(trackTitle(track))}</span><span class="track-category">DIRTY OCTOPUS / ${labelFor(track.category)}</span></span><span class="track-format">${track.format}</span><span class="track-length">${formatTime(track.duration)}</span></button>`,
         )
         .join("")
-    : '<p class="empty">没有找到匹配的作品。<br>试试其他关键词。</p>';
+    : `<p class="empty">${t("没有找到匹配的作品。<br>试试其他关键词。", "No matching compositions.<br>Try another search.")}</p>`;
   $("#track-list").scrollTop = 0;
   updatePlayback();
 }
 function setCurrent(track) {
   current = track;
-  $("#current-title").textContent = track.title;
+  $("#current-title").textContent = trackTitle(track);
   $("#current-title").title = track.filename;
   $("#current-detail").textContent =
     `${labelFor(track.category)} / ${track.format} / ${(Number(track.sampleRate) / 1000).toFixed(1)} kHz`;
@@ -150,29 +181,29 @@ function updatePlayback() {
   const audioPlaying = !audio.paused && !audio.ended;
   const videoPlaying = !video.paused && !video.ended;
   $("#audio-play").innerHTML =
-    `${audioPlaying ? pauseIcon : playIcon}<span>${audioPlaying ? "PAUSE" : "PLAY"}</span>`;
+    `${audioPlaying ? pauseIcon : playIcon}<span>${audioPlaying ? t("暂停", "PAUSE") : t("播放", "PLAY")}</span>`;
   $("#audio-play").setAttribute(
     "aria-label",
-    audioPlaying ? "暂停音乐" : "播放音乐",
+    audioPlaying ? t("暂停音乐", "Pause audio") : t("播放音乐", "Play audio"),
   );
   $("#video-play").innerHTML = videoPlaying ? pauseIcon : playIcon;
   $("#video-play").setAttribute(
     "aria-label",
-    videoPlaying ? "暂停视频" : "播放视频",
+    videoPlaying ? t("暂停视频", "Pause video") : t("播放视频", "Play video"),
   );
   $("#video-stage").classList.toggle("is-playing", videoPlaying);
   if (videoPlaying) $("#video-stage").classList.add("has-started");
-  $("#video-overlay").setAttribute("aria-label", "播放视频");
+  $("#video-overlay").setAttribute("aria-label", t("播放视频", "Play video"));
   $("#video-overlay").setAttribute("aria-hidden", String(videoPlaying));
   $("#video-overlay").tabIndex = videoPlaying ? -1 : 0;
   $("#disc").classList.toggle("spinning", audioPlaying);
   $("#play-state").textContent = audioPlaying
-    ? "NOW PLAYING / 正在播放"
+    ? t("正在播放", "NOW PLAYING")
     : audio.currentTime > 0
-      ? "PAUSED / 已暂停"
-      : "READY / 待播放";
+      ? t("已暂停", "PAUSED")
+      : t("待播放", "READY");
   $("#system-status").innerHTML =
-    `${audioPlaying ? "AUDIO PLAYING" : videoPlaying ? "VIDEO PLAYING" : "READY TO EXPLORE"} <i class="online"></i>`;
+    `${audioPlaying ? t("音乐播放中", "AUDIO PLAYING") : videoPlaying ? t("影像播放中", "VIDEO PLAYING") : t("档案在线", "ARCHIVE ONLINE")} <i class="online"></i>`;
   $$(".track").forEach((el, index) => {
     const selected = el.dataset.track === current.id;
     el.classList.toggle("selected", selected);
@@ -180,7 +211,7 @@ function updatePlayback() {
     el.setAttribute("aria-pressed", String(selected));
     el.setAttribute(
       "aria-label",
-      `${selected && audioPlaying ? "暂停" : "播放"} ${manifest.tracks.find((t) => t.id === el.dataset.track).title}`,
+      `${selected && audioPlaying ? t("暂停", "Pause") : t("播放", "Play")} ${trackTitle(manifest.tracks.find((t) => t.id === el.dataset.track))}`,
     );
     el.querySelector(".track-index").innerHTML =
       selected && audioPlaying
@@ -190,56 +221,106 @@ function updatePlayback() {
           : String(index + 1).padStart(2, "0");
   });
   $("#volume-value").textContent = engine.muted
-    ? "MUTE"
+    ? t("静音", "MUTE")
     : `${Math.round(engine.volume * 100)}%`;
   $("#mute").innerHTML =
     engine.muted || engine.volume === 0 ? muteIcon : volumeIcon;
   $("#mute").setAttribute("aria-pressed", String(engine.muted));
-  $("#mute").setAttribute("aria-label", engine.muted ? "取消静音" : "静音");
+  $("#mute").setAttribute(
+    "aria-label",
+    engine.muted ? t("取消静音", "Unmute") : t("静音", "Mute"),
+  );
+  syncSoundControls();
+  $$("button[aria-label]").forEach((button) => {
+    button.title = button.getAttribute("aria-label");
+  });
 }
 
-$("#enter").addEventListener("click", async () => {
+async function enterExperience(language) {
   if (entered) return;
   entered = true;
-  $("#enter").disabled = true;
+  setLanguage(language);
+  $$("[data-enter]").forEach((button) => {
+    button.disabled = true;
+  });
   try {
     await engine.unlock();
   } catch {
-    toast("声音尚未开启，进入后点击播放即可。");
+    toast(
+      t(
+        "声音尚未开启，进入后点击播放即可。",
+        "Audio is not ready. Press play after entering.",
+      ),
+    );
   }
+  await Promise.race([
+    cueReady,
+    new Promise((resolve) => setTimeout(resolve, 1200)),
+  ]);
+  engine.sfx("bootupcrt");
   $("#boot").classList.add("booting");
   $(".boot-progress").hidden = false;
-  $("#boot-status").textContent = "INITIALIZING AUDIO EXPERIENCE…";
-  await Promise.race([
-    sfxReady,
-    new Promise((resolve) => setTimeout(resolve, 1800)),
-  ]);
-  await engine.sfx("notification");
+  $("#boot-status").textContent = t(
+    "01 / 正在建立声音连接…",
+    "01 / ESTABLISHING AUDIO LINK…",
+  );
+  sfxReady.then(async () => {
+    await engine.setBgmEnabled(engine.bgmEnabled);
+  });
+  if (!reduced.matches) {
+    setTimeout(() => {
+      $("#boot-status").textContent = t(
+        "02 / 正在展开声音档案…",
+        "02 / UNFOLDING THE ARCHIVE…",
+      );
+    }, 1100);
+    setTimeout(() => {
+      $("#boot-status").textContent = t(
+        "03 / 正在组装界面…",
+        "03 / ASSEMBLING INTERFACE…",
+      );
+    }, 2350);
+  }
   setTimeout(
     () => {
-      $("#boot-status").textContent = "READY. WELCOME TO THE ARCHIVE.";
-      $("#site").inert = false;
+      $("#boot-status").textContent = t(
+        "连接完成。欢迎来到声音档案。",
+        "CONNECTED. WELCOME TO THE ARCHIVE.",
+      );
       $("#site").classList.add("site-enter");
+      if (motionAllowed()) engine.sfx("flicker");
       $("#boot").classList.add("leaving");
       setTimeout(
         () => {
           $("#boot").hidden = true;
           $("#boot").style.display = "none";
           document.body.classList.remove("boot-visible");
+          $("#site").inert = false;
           $("#audio-play").focus({ preventScroll: true });
+          setTimeout(
+            () => $("#site").classList.remove("site-enter"),
+            reduced.matches ? 0 : 3100,
+          );
         },
-        reduced.matches ? 0 : 650,
+        reduced.matches ? 0 : 850,
       );
     },
-    reduced.matches ? 150 : 1600,
+    reduced.matches ? 150 : 3200,
   );
-});
+}
+$$("[data-enter]").forEach((button) =>
+  button.addEventListener("click", () => enterExperience(button.dataset.enter)),
+);
 // Keep the intro focus in its dialog; every primary control also supports keyboard input.
 document.addEventListener("keydown", (event) => {
   if (!entered || !$("#boot").hidden) {
     if (event.key === "Tab") {
       event.preventDefault();
-      $("#enter").focus();
+      const buttons = $$("[data-enter]").filter((button) => !button.disabled);
+      const index = buttons.indexOf(document.activeElement);
+      buttons[
+        (index + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length
+      ]?.focus();
     }
     return;
   }
@@ -253,7 +334,7 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     if (["video", "about"].includes($(".shell").dataset.view)) {
       changeView("audio");
-      setTimeout(() => $("#search").focus(), motionAllowed() ? 310 : 0);
+      setTimeout(() => $("#search").focus(), motionAllowed() ? 980 : 0);
     } else $("#search").focus();
   }
   if (event.key === "Escape" && event.target === $("#search")) {
@@ -272,7 +353,7 @@ document.addEventListener(
       !event.target.closest("button,a,input[type=range]")
     )
       return;
-    if (event.target.closest("#sfx-toggle")) return;
+    if (event.target.closest("#sfx-toggle,#system-sfx")) return;
     engine.sfx("clickeffect");
   },
   true,
@@ -280,23 +361,72 @@ document.addEventListener(
 $("#sfx-toggle").addEventListener("click", () => {
   engine.sfxEnabled = !engine.sfxEnabled;
   if (!engine.sfxEnabled) {
-    engine.sfxSerial = (engine.sfxSerial || 0) + 1;
     engine.stopSfx();
   } else engine.sfx("clickeffect");
+  syncSoundControls();
+});
+function syncSoundControls() {
   $("#sfx-toggle").setAttribute("aria-pressed", String(engine.sfxEnabled));
   $("#sfx-toggle").setAttribute(
     "aria-label",
-    engine.sfxEnabled ? "关闭界面音效" : "开启界面音效",
+    engine.sfxEnabled
+      ? t("关闭界面音效", "Disable interface sounds")
+      : t("开启界面音效", "Enable interface sounds"),
   );
-  $("#sfx-toggle b").textContent = engine.sfxEnabled ? "ON" : "OFF";
+  $("#sfx-toggle b").textContent = engine.sfxEnabled
+    ? t("开", "ON")
+    : t("关", "OFF");
+  $("#bgm-toggle").setAttribute("aria-pressed", String(engine.bgmEnabled));
+  $("#bgm-toggle").setAttribute(
+    "aria-label",
+    engine.bgmEnabled
+      ? t("关闭背景音乐", "Disable background music")
+      : t("开启背景音乐", "Enable background music"),
+  );
+  $("#bgm-toggle b").textContent = engine.bgmEnabled
+    ? t("开", "ON")
+    : t("关", "OFF");
+  for (const id of ["sfx-toggle", "bgm-toggle"]) {
+    $(`#${id}`).title = $(`#${id}`).getAttribute("aria-label");
+  }
+  for (const [id, enabled] of [
+    ["system-sfx", engine.sfxEnabled],
+    ["system-bgm", engine.bgmEnabled],
+  ]) {
+    $(`#${id}`).setAttribute("aria-checked", String(enabled));
+    $(`#${id}`).textContent = enabled ? t("开", "ON") : t("关", "OFF");
+  }
+}
+$("#bgm-toggle").addEventListener("click", async () => {
+  const enabled = !engine.bgmEnabled;
+  engine.bgmEnabled = enabled;
+  syncSoundControls();
+  await sfxReady;
+  await engine.setBgmEnabled(engine.bgmEnabled);
 });
+let lastPreselect = 0;
+function preselect(event) {
+  const control = event.target.closest("button,a,input[type=range]");
+  if (!control || control.disabled || !$("#boot").hidden || !entered) return;
+  if (
+    event.type === "pointerover" &&
+    (event.pointerType !== "mouse" || control.contains(event.relatedTarget))
+  )
+    return;
+  const now = performance.now();
+  if (now - lastPreselect < 100) return;
+  lastPreselect = now;
+  engine.sfx("preselect");
+}
+document.addEventListener("pointerover", preselect);
+document.addEventListener("focusin", preselect);
 $("#filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (!button) return;
   category = button.dataset.category;
   if (["video", "about"].includes($(".shell").dataset.view))
     changeView("audio");
-  logAction(`FILTER / ${category.toUpperCase()}`);
+  logAction(`${t("分类", "FILTER")} / ${labelFor(category)}`);
   $$(".filter").forEach((el) => {
     el.classList.toggle("active", el === button);
     el.setAttribute("aria-pressed", String(el === button));
@@ -341,7 +471,11 @@ $("#next").addEventListener("click", () => adjacent(1));
 $("#loop").addEventListener("click", () => {
   engine.repeat = !engine.repeat;
   $("#loop").setAttribute("aria-pressed", String(engine.repeat));
-  toast(engine.repeat ? "已开启单曲循环" : "已关闭单曲循环");
+  toast(
+    engine.repeat
+      ? t("已开启单曲循环", "Track repeat enabled")
+      : t("已关闭单曲循环", "Track repeat disabled"),
+  );
 });
 $("#volume").addEventListener("input", (event) => {
   engine.setMuted(false);
@@ -407,9 +541,20 @@ $("#fullscreen").addEventListener("click", async () => {
     else if ($("#video-section").requestFullscreen)
       await $("#video-section").requestFullscreen();
     else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-    else toast("此浏览器不支持视频全屏。");
+    else
+      toast(
+        t(
+          "此浏览器不支持视频全屏。",
+          "Fullscreen is not available in this browser.",
+        ),
+      );
   } catch {
-    toast("全屏未能开启，请重试。");
+    toast(
+      t(
+        "全屏未能开启，请重试。",
+        "Fullscreen could not start. Please try again.",
+      ),
+    );
   }
 });
 function focusSection(name) {
@@ -531,9 +676,23 @@ if ("mediaSession" in navigator) {
 
 initInterface({
   engine,
+  categoryLabel: labelFor,
   getTrack: () => current,
   onView: (view) => {
     if (["audio", "about"].includes(view) && !video.paused)
       engine.pause("video");
   },
 });
+
+document.addEventListener("languagechange", () => {
+  renderFilters();
+  renderTracks();
+  $("#current-title").textContent = trackTitle(current);
+  $("#current-detail").textContent =
+    `${labelFor(current.category)} / ${current.format} / ${(Number(current.sampleRate) / 1000).toFixed(1)} kHz`;
+  hydrateIcons();
+});
+$$("[data-language]").forEach((button) =>
+  button.addEventListener("click", () => setLanguage(button.dataset.language)),
+);
+setLanguage("zh");

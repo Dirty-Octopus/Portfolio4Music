@@ -1,4 +1,4 @@
-/** A single content-playback owner. UI SFX use a separate, non-stacking bus.
+/** A single content-playback owner. UI SFX are non-stacking; intro cues retain their tails.
  * Gain envelopes remove transport discontinuities without altering source files.
  * Commands are serialized, superseded requests cannot start stale media.
  */
@@ -30,12 +30,16 @@ export class PlaybackEngine {
     this.muted = false;
     this.repeat = false;
     this.sfxEnabled = true;
+    this.bgmEnabled = true;
+    this.bgmSerial = 0;
     this.active = null;
     this.gains = {};
     this.requestId = 0;
     this.queue = Promise.resolve();
     this.buffers = {};
     this.sfxVoice = null;
+    this.cueVoice = null;
+    this.playedCues = new Set();
     this.endedCallback = null;
     for (const [kind, element] of Object.entries(this.media)) {
       element.addEventListener("play", () => {
@@ -47,11 +51,16 @@ export class PlaybackEngine {
           }
         }
         this.active = kind;
+        this.updateBgmLevel();
         this.onChange();
       });
-      element.addEventListener("pause", () => this.onChange());
+      element.addEventListener("pause", () => {
+        this.updateBgmLevel();
+        this.onChange();
+      });
       element.addEventListener("ended", () => {
         if (this.active === kind) this.active = null;
+        this.updateBgmLevel();
         this.onChange();
         if (kind === "audio" && this.repeat) this.seek("audio", 0, true);
       });
@@ -207,62 +216,130 @@ export class PlaybackEngine {
   }
   async preloadSfx(paths) {
     // Fetch early; decoding waits for the initialized AudioContext.
-    this.rawSfx = Object.fromEntries(
-      await Promise.all(
-        Object.entries(paths).map(async ([key, path]) => {
-          try {
-            const response = await fetch(path);
-            if (!response.ok) throw new Error("SFX unavailable");
-            return [key, await response.arrayBuffer()];
-          } catch {
-            return [key, null];
-          }
-        }),
-      ),
+    this.rawSfx ??= {};
+    await Promise.all(
+      Object.entries(paths).map(async ([key, path]) => {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) throw new Error("SFX unavailable");
+          this.rawSfx[key] = await response.arrayBuffer();
+        } catch {
+          this.rawSfx[key] = null;
+        }
+      }),
     );
   }
   async sfx(name) {
     if (!this.sfxEnabled || !this.context) return;
-    const serial = (this.sfxSerial = (this.sfxSerial || 0) + 1);
+    const cue = name === "bootupcrt" || name === "flicker";
+    if (cue && this.playedCues.has(name)) return;
+    const serialKey = cue ? "cueSerial" : "sfxSerial";
+    const voiceKey = cue ? "cueVoice" : "sfxVoice";
+    const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
     try {
       if (!this.buffers[name] && this.rawSfx?.[name])
         this.buffers[name] = await this.context.decodeAudioData(
           this.rawSfx[name].slice(0),
         );
-      if (!this.buffers[name] || serial !== this.sfxSerial || !this.sfxEnabled)
+      if (!this.buffers[name] || serial !== this[serialKey] || !this.sfxEnabled)
         return;
-      this.stopSfx();
+      // One-shot intro cues keep their natural tails while UI sounds remain non-stacking.
+      this.stopVoice(voiceKey);
       const source = this.context.createBufferSource();
       source.buffer = this.buffers[name];
       const gain = this.context.createGain();
       const now = this.context.currentTime;
       const duration = source.buffer.duration;
+      const level =
+        { notification: 0.28, bootupcrt: 0.32, flicker: 0.16 }[name] ?? 0.19;
       gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(
-        name === "notification" ? 0.28 : 0.19,
-        now + 0.005,
-      );
-      gain.gain.setValueAtTime(
-        name === "notification" ? 0.28 : 0.19,
-        now + Math.max(0.006, duration - 0.015),
-      );
+      gain.gain.linearRampToValueAtTime(level, now + 0.005);
+      gain.gain.setValueAtTime(level, now + Math.max(0.006, duration - 0.015));
       gain.gain.linearRampToValueAtTime(0, now + duration);
       source.connect(gain);
       gain.connect(this.master);
       source.start();
+      if (cue) this.playedCues.add(name);
       source.onended = () => {
         source.disconnect();
         gain.disconnect();
-        if (this.sfxVoice?.source === source) this.sfxVoice = null;
+        if (this[voiceKey]?.source === source) this[voiceKey] = null;
       };
-      this.sfxVoice = { source, gain };
+      this[voiceKey] = { source, gain };
     } catch {
       /* A missing interface effect must never block media playback. */
     }
   }
+  async setBgmEnabled(enabled) {
+    this.bgmEnabled = enabled;
+    const serial = ++this.bgmSerial;
+    if (!enabled) {
+      const voice = this.bgmVoice;
+      this.bgmVoice = null;
+      if (voice) {
+        const now = this.context.currentTime;
+        voice.gain.gain.cancelScheduledValues(now);
+        voice.gain.gain.setTargetAtTime(0, now, 0.08);
+        voice.source.stop(now + 0.5);
+      }
+      this.onChange();
+      return;
+    }
+    try {
+      await this.unlock();
+      if (!this.buffers.pad && this.rawSfx?.pad) {
+        this.padDecode ??= this.context.decodeAudioData(
+          this.rawSfx.pad.slice(0),
+        );
+        this.buffers.pad = await this.padDecode;
+      }
+      if (serial !== this.bgmSerial || !this.bgmEnabled || this.bgmVoice)
+        return;
+      if (!this.buffers.pad) throw new Error("Background audio unavailable");
+      const source = this.context.createBufferSource();
+      const gain = this.context.createGain();
+      source.buffer = this.buffers.pad;
+      source.loop = true;
+      gain.gain.value = 0;
+      source.connect(gain);
+      gain.connect(this.master);
+      source.onended = () => {
+        source.disconnect();
+        gain.disconnect();
+      };
+      this.bgmVoice = { source, gain };
+      source.start();
+      this.updateBgmLevel();
+    } catch {
+      this.padDecode = null;
+      if (serial === this.bgmSerial) {
+        this.bgmEnabled = false;
+        this.onError("背景音乐加载失败，请重试。");
+      }
+    }
+    this.onChange();
+  }
+  updateBgmLevel() {
+    if (!this.bgmVoice) return;
+    const playing = Object.values(this.media).some(
+      (element) => !element.paused && !element.ended,
+    );
+    // The ambience remains continuous, but makes room for the selected work.
+    this.bgmVoice.gain.gain.setTargetAtTime(
+      playing ? 0.012 : 0.22,
+      this.context.currentTime,
+      playing ? 0.12 : 0.8,
+    );
+  }
   stopSfx() {
-    if (!this.sfxVoice) return;
-    const { source, gain } = this.sfxVoice;
+    this.sfxSerial = (this.sfxSerial || 0) + 1;
+    this.cueSerial = (this.cueSerial || 0) + 1;
+    this.stopVoice("sfxVoice");
+    this.stopVoice("cueVoice");
+  }
+  stopVoice(voiceKey) {
+    if (!this[voiceKey]) return;
+    const { source, gain } = this[voiceKey];
     const now = this.context.currentTime;
     gain.gain.cancelScheduledValues(now);
     gain.gain.setValueAtTime(gain.gain.value, now);
@@ -272,6 +349,6 @@ export class PlaybackEngine {
     } catch {
       /* Already ended. */
     }
-    this.sfxVoice = null;
+    this[voiceKey] = null;
   }
 }

@@ -2,7 +2,7 @@
 
 [Open the portfolio](https://dirty-octopus.github.io/Portfolio4Music/)
 
-An interactive music and sound-design portfolio, drawing on 2Advanced Studios V3's typography, separated panels, restrained blue-gray palette, and staged motion. Includes the supplied Dirty Octopus identity artwork, nondestructive duotone/posterized/halftone treatments, four actual interface layouts, a file inspector, and a system control drawer.
+An interactive music and sound-design portfolio with Chinese and English editions. Inspired by 2Advanced Studios V3 and millennium forums: compact board headers, dense topic rows, interlocking angled controls, CRT ignition, long panel assembly, signal traces, and continuous shape morphs. Includes the supplied Dirty Octopus identity artwork, nondestructive duotone/posterized/halftone treatments, four interface layouts, a file inspector, and a system control drawer.
 
 ## Run and deploy
 
@@ -21,18 +21,20 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: tests, Vite build, GitHub
 - 16 musical works, with searchable categories and precomputed real waveforms.
 - 2 interface sound effects, also available under the SFX category.
 - 1 independent 1080p H.264/AAC video player with draggable timeline and fullscreen.
-- All 19 media files and artwork are committed under `public/`.
+- All 23 media files and artwork are served locally from `public/`, including the ambient pad, preselection effect, CRT startup, and one-shot flicker.
 - Original local recordings remain untouched and ignored at repository root. `npm run media` regenerates portable media and `src/media.json` when originals and FFmpeg are available. This is not needed to build or deploy.
 
 ## Interaction
 
-Overview, audio archive, visual theater, and artist profile are independent layouts. A persistent transport retains track selection and position. Opening the audio/profile view pauses hidden video. The system drawer controls artwork processing, interface motion, and interface sounds. The original video colors are retained after playback starts.
+Overview, audio archive, visual theater, and artist profile are independent layouts. A persistent transport retains track selection and position. Opening the audio/profile view pauses hidden video. The system drawer controls artwork processing, interface motion, SFX, BGM, language, and screen diffusion (0–0.8 px; default 0.35 px). Language can change during playback. The original video colors are retained after playback starts.
 
 `Space`: play/pause when not editing another control. `/`: open the audio archive and focus search. Arrow keys: precise seeking when a progress slider is focused. `Esc`: close the system drawer or clear focused search. Every control supports keyboard focus, and reduced-motion preferences are honored.
 
 ## Playback
 
-Browsers require a user gesture before audible playback. The entry button starts the notification and the short initialization animation. UI clicks use the supplied click SFX. Music/video playback is serialized and mutually exclusive; a 35 ms Web Audio gain envelope surrounds source switches, pauses, and seeks. Interface effects run through a separate low-level bus and do not stack. These envelopes prevent player-induced abrupt discontinuities; they do not repair artifacts already present in source recordings.
+Browsers require a user gesture before audible playback. Choosing Chinese or English starts `SFX/bootupcrt.wav`, staged initialization, and a continuous loop of `SFX/pad.wav`. The bright `SFX/flicker.wav` sounds once at the visual reveal, with its full natural tail; reduced motion skips this visual cue. Both intro cues are isolated from hover/click sounds and cannot retrigger during navigation. BGM has its own switch beside SFX and automatically ducks while a work or video plays, recovering on pause/end. Mouse hover and keyboard focus play `SFX/preselect.wav`; clicks use the supplied click SFX. Music/video playback is serialized and mutually exclusive; a 35 ms Web Audio gain envelope surrounds source switches, pauses, and seeks. UI effects do not stack; switching SFX off silences UI and intro cues without stopping the ambient loop. All audio passes through the master volume/mute. These envelopes prevent player-induced abrupt discontinuities; they do not repair artifacts already present in source recordings.
+
+`npm run qa` runs browser acceptance checks and saves screenshots to `.qa/`. `QA_URL` can target an existing local server; `QA_PREVIEW=1` checks a production build.
 
 ## Design assets
 

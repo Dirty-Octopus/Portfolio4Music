@@ -15,14 +15,16 @@ const PORT = Number(process.env.QA_PORT || 5199);
 const DEBUG_PORT = Number(process.env.QA_DEBUG_PORT || 9333);
 const BASE = process.env.QA_URL || `http://127.0.0.1:${PORT}/`;
 const REMOTE = Boolean(process.env.QA_URL);
-const CHROME = process.env.CHROME || [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium-browser',
-  '/usr/bin/chromium',
-].find(candidate => existsSync(candidate));
+const CHROME =
+  process.env.CHROME ||
+  [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ].find((candidate) => existsSync(candidate));
 
 const results = [];
 function check(name, ok, detail = '') {
@@ -36,7 +38,7 @@ class CDP {
     this.id = 0;
     this.pending = new Map();
     this.handlers = new Map();
-    ws.addEventListener('message', event => {
+    ws.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
       if (message.id && this.pending.has(message.id)) {
         const { resolve, reject } = this.pending.get(message.id);
@@ -63,18 +65,23 @@ class CDP {
   once(method, timeout = 15000) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error(`${method} timed out`)), timeout);
-      const handler = params => {
+      const handler = (params) => {
         clearTimeout(timer);
-        this.handlers.set(method, (this.handlers.get(method) || []).filter(h => h !== handler));
+        this.handlers.set(
+          method,
+          (this.handlers.get(method) || []).filter((h) => h !== handler),
+        );
         resolve(params);
       };
       this.on(method, handler);
     });
   }
-  close() { this.ws.close(); }
+  close() {
+    this.ws.close();
+  }
 }
 
-const sleepMs = ms => sleep(ms);
+const sleepMs = (ms) => sleep(ms);
 const errors = [];
 const badResponses = [];
 
@@ -99,11 +106,21 @@ async function main() {
 
   console.log('· starting headless Chrome');
   const profile = join(tmpdir(), `portfolio-qa-${Date.now()}`);
-  const chrome = spawn(CHROME, [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-    `--remote-debugging-port=${DEBUG_PORT}`, `--user-data-dir=${profile}`,
-    '--window-size=1440,980', '--hide-scrollbars', 'about:blank',
-  ], { stdio: 'ignore' });
+  const chrome = spawn(
+    CHROME,
+    [
+      '--headless=new',
+      '--disable-gpu',
+      '--no-first-run',
+      '--no-default-browser-check',
+      `--remote-debugging-port=${DEBUG_PORT}`,
+      `--user-data-dir=${profile}`,
+      '--window-size=1440,980',
+      '--hide-scrollbars',
+      'about:blank',
+    ],
+    { stdio: 'ignore' },
+  );
 
   const target = await waitForTarget(DEBUG_PORT, 20000);
   const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -112,11 +129,11 @@ async function main() {
     ws.addEventListener('error', reject, { once: true });
   });
   const cdp = new CDP(ws);
-  cdp.on('Runtime.exceptionThrown', params => errors.push(params.exceptionDetails?.text || 'exception'));
-  cdp.on('Runtime.consoleAPICalled', params => {
-    if (params.type === 'error') errors.push(params.args.map(a => a.value ?? a.description).join(' '));
+  cdp.on('Runtime.exceptionThrown', (params) => errors.push(params.exceptionDetails?.text || 'exception'));
+  cdp.on('Runtime.consoleAPICalled', (params) => {
+    if (params.type === 'error') errors.push(params.args.map((a) => a.value ?? a.description).join(' '));
   });
-  cdp.on('Network.responseReceived', params => {
+  cdp.on('Network.responseReceived', (params) => {
     if (params.response.status >= 400) badResponses.push(`${params.response.status} ${params.response.url}`);
   });
 
@@ -124,41 +141,93 @@ async function main() {
   await cdp.send('Runtime.enable');
   await cdp.send('Network.enable');
   await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: qaHook });
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height: 900,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
 
   const evaluate = async (expression, awaitPromise = true) => {
-    const { result, exceptionDetails } = await cdp.send('Runtime.evaluate', { expression, awaitPromise, returnByValue: true });
+    const { result, exceptionDetails } = await cdp.send('Runtime.evaluate', {
+      expression,
+      awaitPromise,
+      returnByValue: true,
+    });
     if (exceptionDetails) throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
     return result.value;
   };
-  const scrollTo = selector => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: 'center', behavior: 'instant' }); return true; })()`);
-  const boxOf = async selector => {
+  const scrollTo = (selector) =>
+    evaluate(
+      `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: 'center', behavior: 'instant' }); return true; })()`,
+    );
+  const boxOf = async (selector) => {
     await scrollTo(selector);
     await sleepMs(120);
-    return evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
+    return evaluate(
+      `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`,
+    );
   };
-  const click = async selector => {
+  const click = async (selector) => {
     const box = await boxOf(selector);
     if (!box) throw new Error(`missing element ${selector}`);
-    const x = box.x + box.w / 2, y = box.y + box.h / 2;
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1, buttons: 1 });
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, buttons: 0 });
+    const x = box.x + box.w / 2,
+      y = box.y + box.h / 2;
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      x,
+      y,
+      button: 'left',
+      clickCount: 1,
+      buttons: 1,
+    });
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x,
+      y,
+      button: 'left',
+      clickCount: 1,
+      buttons: 0,
+    });
   };
   const drag = async (selector, from, to) => {
     const box = await boxOf(selector);
     if (!box) throw new Error(`missing element ${selector}`);
     const y = box.y + box.h / 2;
-    const x1 = box.x + box.w * from, x2 = box.x + box.w * to;
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x1, y, button: 'left', clickCount: 1, buttons: 1 });
+    const x1 = box.x + box.w * from,
+      x2 = box.x + box.w * to;
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      x: x1,
+      y,
+      button: 'left',
+      clickCount: 1,
+      buttons: 1,
+    });
     for (let i = 1; i <= 6; i++) {
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1 + (x2 - x1) * i / 6, y, button: 'left', buttons: 1 });
+      await cdp.send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved',
+        x: x1 + ((x2 - x1) * i) / 6,
+        y,
+        button: 'left',
+        buttons: 1,
+      });
       await sleepMs(16);
     }
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x2, y, button: 'left', clickCount: 1, buttons: 0 });
+    await cdp.send('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      x: x2,
+      y,
+      button: 'left',
+      clickCount: 1,
+      buttons: 0,
+    });
   };
-  const shot = async name => {
+  const shot = async (name) => {
     if (!SHOTS) return;
-    const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    const { data } = await cdp.send('Page.captureScreenshot', {
+      format: 'png',
+    });
     writeFileSync(join(QA_DIR, `${name}.png`), Buffer.from(data, 'base64'));
   };
   const waitFor = async (expression, timeout = 8000, label = expression) => {
@@ -179,23 +248,107 @@ async function main() {
 
   check('boot overlay is shown first', await evaluate(`getComputedStyle(document.querySelector('#boot')).display !== 'none'`));
   check('site is inert behind the boot overlay', await evaluate(`document.querySelector('#site').inert === true`));
-  check('manifest renders 16 audio tracks', await evaluate(`document.querySelectorAll('.track').length`) === 16);
-  check('all 6 filters render', await evaluate(`document.querySelectorAll('.filter').length`) === 6);
+  check('manifest renders 16 audio tracks', (await evaluate(`document.querySelectorAll('.track').length`)) === 16);
+  check('all 6 filters render', (await evaluate(`document.querySelectorAll('.filter').length`)) === 6);
+  check('entry offers Chinese and English', await evaluate(`document.querySelectorAll('[data-enter]').length === 2`));
 
   console.log('· entering the experience');
   await click('#enter');
+  await waitFor(`document.querySelector('#boot').classList.contains('booting')`);
+  await sleepMs(180);
+  await shot('14-crt-ignition');
   await waitFor(`document.querySelector('#boot').hidden === true`, 8000, 'boot dismissal');
-  await sleepMs(900);
+  await sleepMs(2200);
   check('site becomes interactive after entering', await evaluate(`document.querySelector('#site').inert === false`));
   const sfxAfterEnter = await evaluate(`window.__qa.sfxStarts`);
-  check('notification SFX plays on entry', sfxAfterEnter.length >= 1 && sfxAfterEnter[0].duration > 1, `voices=${sfxAfterEnter.length}`);
+  check(
+    'CRT power-on cue plays once on entry',
+    sfxAfterEnter.filter((source) => !source.loop && Math.abs(source.duration - 1 / 3) < 0.002).length === 1,
+    `voices=${sfxAfterEnter.length}`,
+  );
+  const flickers = sfxAfterEnter.filter((source) => Math.abs(source.duration - 1.364127) < 0.002);
+  check(
+    'bright flicker plays once with its full natural tail',
+    flickers.length === 1 && !flickers[0].loop && !flickers[0].stoppedAt && flickers[0].endedAt - flickers[0].at >= 1250,
+  );
+  check('flicker follows the CRT startup as a separate reveal cue', flickers[0]?.at - sfxAfterEnter[0]?.at >= 2900);
+  check(
+    'navigation and hero have shaped silhouettes',
+    await evaluate(`
+    ['.nav', '.hero'].every(selector => getComputedStyle(document.querySelector(selector)).clipPath.startsWith('polygon'))
+  `),
+  );
+  const motionBefore = await evaluate(`({
+    fin: getComputedStyle(document.querySelector('.signal-fin-a')).clipPath,
+    trace: getComputedStyle(document.querySelector('.contour-trace')).strokeDashoffset,
+    rail: getComputedStyle(document.querySelector('.chassis-bridge')).height
+  })`);
+  await sleepMs(600);
+  check(
+    'ambient contours move and fins continuously morph',
+    await evaluate(`
+    getComputedStyle(document.querySelector('.signal-fin-a')).clipPath !== ${JSON.stringify(motionBefore.fin)} &&
+    getComputedStyle(document.querySelector('.contour-trace')).strokeDashoffset !== ${JSON.stringify(motionBefore.trace)}
+  `),
+  );
+  check(
+    'pad starts in a continuous loop by default',
+    sfxAfterEnter.some((source) => source.loop && Math.abs(source.duration - 60) < 0.1),
+  );
+  check(
+    'Chinese entry localizes content',
+    await evaluate(`document.documentElement.lang === 'zh-CN' && document.querySelector('#current-title').textContent === '管弦乐创作'`),
+  );
+  const hoverBox = await boxOf('[data-nav="audio"]');
+  const beforeHover = await evaluate(`window.__qa.sfxStarts.length`);
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: hoverBox.x + 20,
+    y: hoverBox.y + 20,
+  });
+  await sleepMs(300);
+  check(
+    'preselection triggers its own sound',
+    await evaluate(`window.__qa.sfxStarts.length > ${beforeHover} && window.__qa.sfxStarts.at(-1).duration < 1`),
+  );
+  await click('#sfx-toggle');
+  const beforeSilentHover = await evaluate(`window.__qa.sfxStarts.length`);
+  const hoverVideoBox = await boxOf('[data-nav="video"]');
+  await cdp.send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved',
+    x: hoverVideoBox.x + 20,
+    y: hoverVideoBox.y + 20,
+  });
+  await sleepMs(200);
+  check(
+    'SFX off silences preselection while BGM stays enabled',
+    await evaluate(
+      `window.__qa.sfxStarts.length === ${beforeSilentHover} && document.querySelector('#bgm-toggle').getAttribute('aria-pressed') === 'true'`,
+    ),
+  );
+  await click('#bgm-toggle');
+  check('BGM can be disabled separately', await evaluate(`document.querySelector('#bgm-toggle').getAttribute('aria-pressed') === 'false'`));
+  await click('#bgm-toggle');
+  await sleepMs(200);
+  check(
+    'BGM restarts while SFX remains off',
+    await evaluate(
+      `window.__qa.sfxStarts.filter(source => source.loop).length === 2 && document.querySelector('#sfx-toggle').getAttribute('aria-pressed') === 'false'`,
+    ),
+  );
+  await click('#sfx-toggle');
   await shot('02-main');
 
   console.log('· playback checks');
   await click('.track');
   await sleepMs(600);
   check('clicking a track starts audio playback', await evaluate(`!document.querySelector('#audio').paused`));
-  check('player shows the selected track', await evaluate(`document.querySelector('#current-title').textContent.length > 0 && document.querySelector('#play-state').textContent.includes('NOW PLAYING')`));
+  check(
+    'player shows the selected track',
+    await evaluate(
+      `document.querySelector('#current-title').textContent.length > 0 && document.querySelector('#play-state').textContent.includes('播放')`,
+    ),
+  );
   check('disc animates while playing', await evaluate(`document.querySelector('#disc').classList.contains('spinning')`));
   const seekA = await evaluate(`document.querySelector('#audio').currentTime`);
   await sleepMs(1400);
@@ -209,8 +362,14 @@ async function main() {
   console.log('· drag the audio progress bar');
   await drag('#audio-seek', 0.15, 0.72);
   await sleepMs(700);
-  const audioAfterDrag = await evaluate(`(() => { const a = document.querySelector('#audio'); return { time: a.currentTime, duration: a.duration, paused: a.paused }; })()`);
-  check('audio seek follows the drag', Math.abs(audioAfterDrag.time / audioAfterDrag.duration - 0.72) < 0.06, `${(audioAfterDrag.time / audioAfterDrag.duration * 100).toFixed(1)}%`);
+  const audioAfterDrag = await evaluate(
+    `(() => { const a = document.querySelector('#audio'); return { time: a.currentTime, duration: a.duration, paused: a.paused }; })()`,
+  );
+  check(
+    'audio seek follows the drag',
+    Math.abs(audioAfterDrag.time / audioAfterDrag.duration - 0.72) < 0.06,
+    `${((audioAfterDrag.time / audioAfterDrag.duration) * 100).toFixed(1)}%`,
+  );
   check('audio keeps playing after the drag', audioAfterDrag.paused === false);
   await shot('03-audio-playing');
 
@@ -229,55 +388,222 @@ async function main() {
   console.log('· drag the video progress bar');
   await drag('#video-seek', 0.1, 0.55);
   await sleepMs(900);
-  const videoAfterDrag = await evaluate(`(() => { const v = document.querySelector('#video'); return { time: v.currentTime, duration: v.duration, paused: v.paused }; })()`);
-  check('video seek follows the drag', Math.abs(videoAfterDrag.time / videoAfterDrag.duration - 0.55) < 0.06, `${(videoAfterDrag.time / videoAfterDrag.duration * 100).toFixed(1)}%`);
+  const videoAfterDrag = await evaluate(
+    `(() => { const v = document.querySelector('#video'); return { time: v.currentTime, duration: v.duration, paused: v.paused }; })()`,
+  );
+  check(
+    'video seek follows the drag',
+    Math.abs(videoAfterDrag.time / videoAfterDrag.duration - 0.55) < 0.06,
+    `${((videoAfterDrag.time / videoAfterDrag.duration) * 100).toFixed(1)}%`,
+  );
   check('video keeps playing after the drag', videoAfterDrag.paused === false);
 
   console.log('· switching back to audio');
   await click('#audio-play');
   await sleepMs(800);
-  check('audio resumes and pauses video', await evaluate(`!document.querySelector('#audio').paused && document.querySelector('#video').paused`));
+  check(
+    'audio resumes and pauses video',
+    await evaluate(`!document.querySelector('#audio').paused && document.querySelector('#video').paused`),
+  );
 
   console.log('· keyboard shortcuts');
   await evaluate(`document.activeElement && document.activeElement.blur()`);
   await sleepMs(200);
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: ' ',
+    code: 'Space',
+    windowsVirtualKeyCode: 32,
+  });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: ' ',
+    code: 'Space',
+    windowsVirtualKeyCode: 32,
+  });
   await sleepMs(400);
   check('space bar pauses playback', await evaluate(`document.querySelector('#audio').paused`));
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: '/', code: 'Slash', windowsVirtualKeyCode: 191 });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: '/', code: 'Slash', windowsVirtualKeyCode: 191 });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: '/',
+    code: 'Slash',
+    windowsVirtualKeyCode: 191,
+  });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: '/',
+    code: 'Slash',
+    windowsVirtualKeyCode: 191,
+  });
   await sleepMs(300);
   check('slash focuses the search field', await evaluate(`document.activeElement === document.querySelector('#search')`));
   await cdp.send('Input.insertText', { text: '凯尔特' });
   await sleepMs(500);
-  check('search narrows the track list', await evaluate(`document.querySelectorAll('.track').length`) === 2);
-  await evaluate(`(() => { const input = document.querySelector('#search'); input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); input.blur(); })()`);
+  check('search narrows the track list', (await evaluate(`document.querySelectorAll('.track').length`)) === 2);
+  await evaluate(
+    `(() => { const input = document.querySelector('#search'); input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); input.blur(); })()`,
+  );
   await sleepMs(400);
 
   console.log('· filters, loop, volume');
   await evaluate(`[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'game').click()`);
   await sleepMs(400);
-  check('category filter narrows the list', await evaluate(`document.querySelectorAll('.track').length`) === 4);
+  check('category filter narrows the list', (await evaluate(`document.querySelectorAll('.track').length`)) === 4);
   await evaluate(`[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'all').click()`);
   await sleepMs(300);
   await click('#loop');
   await sleepMs(300);
-  check('loop toggle reports its state', await evaluate(`document.querySelector('#loop').getAttribute('aria-pressed') === 'true' && document.querySelector('#toast').textContent.includes('单曲循环')`));
+  check(
+    'loop toggle reports its state',
+    await evaluate(
+      `document.querySelector('#loop').getAttribute('aria-pressed') === 'true' && document.querySelector('#toast').textContent.includes('单曲循环')`,
+    ),
+  );
   await click('#loop');
   await click('#mute');
   await sleepMs(300);
-  check('mute updates the master output label', await evaluate(`document.querySelector('#volume-value').textContent === 'MUTE'`));
+  check('mute updates the master output label', await evaluate(`document.querySelector('#volume-value').textContent === '静音'`));
   await click('#mute');
 
+  console.log('· view morphs, language and settings');
+  await click('[data-nav="audio"]');
+  await sleepMs(420);
+  check(
+    'view uses a long shutter transition',
+    await evaluate(
+      `document.querySelector('.workspace').classList.contains('changing') && document.querySelector('.shell').dataset.view === 'overview'`,
+    ),
+  );
+  await shot('06-morph');
+  await waitFor(`document.querySelector('.shell').dataset.view === 'audio'`);
+  await sleepMs(1800);
+  check(
+    'transition completes without a blocking shutter',
+    await evaluate(`!document.querySelector('.workspace').classList.contains('changing')`),
+  );
+  await shot('07-audio-view');
+  await click('[data-nav="video"]');
+  await click('[data-nav="about"]');
+  await waitFor(`document.querySelector('.shell').dataset.view === 'about'`);
+  await sleepMs(1800);
+  check(
+    'rapid navigation settles on the latest destination',
+    await evaluate(
+      `document.querySelector('.nav.active').dataset.nav === 'about' && !document.querySelector('.workspace').classList.contains('changing')`,
+    ),
+  );
+  check(
+    'navigation does not retrigger the one-shot flicker sound',
+    await evaluate(`
+    window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1.364127) < .002).length === 1
+  `),
+  );
+  await shot('08-profile');
+  await click('#system-open');
+  await sleepMs(1000);
+  await click('[data-language="en"]');
+  check(
+    'language switch translates titles and controls',
+    await evaluate(
+      `document.documentElement.lang === 'en' && document.querySelector('#search').placeholder === 'Search compositions…' && !/[\\u4e00-\\u9fff]/.test(document.querySelector('#current-title').textContent)`,
+    ),
+  );
+  await click('#softness');
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'Home',
+    code: 'Home',
+    windowsVirtualKeyCode: 36,
+  });
+  await cdp.send('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Home',
+    code: 'Home',
+    windowsVirtualKeyCode: 36,
+  });
+  check(
+    'screen diffusion can be removed',
+    await evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--screen-softness').trim() === '0px'`),
+  );
+  await shot('09-settings-en');
+  await click('#motion-toggle');
+  await click('#system-close');
+  await waitFor(`!document.querySelector('#system-dialog').open`);
+  await click('[data-nav="video"]');
+  check(
+    'reduced motion switches views immediately',
+    await evaluate(
+      `document.querySelector('.shell').dataset.view === 'video' && !document.querySelector('.workspace').classList.contains('changing')`,
+    ),
+  );
+  check(
+    'motion switch disables continuous motion and scanning',
+    await evaluate(`
+    getComputedStyle(document.querySelector('.signal-fin-a')).animationName === 'none' &&
+    getComputedStyle(document.querySelector('.signal-scan')).display === 'none'
+  `),
+  );
+  await shot('10-video-en');
+  await click('[data-nav="overview"]');
+
   console.log('· mobile layout');
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 2,
+    mobile: true,
+  });
   await sleepMs(600);
-  check('no horizontal overflow at 390px', await evaluate(`document.documentElement.scrollWidth <= 391`), `scrollWidth=${await evaluate(`document.documentElement.scrollWidth`)}`);
+  check(
+    'no horizontal overflow at 390px',
+    await evaluate(`document.documentElement.scrollWidth <= 391`),
+    `scrollWidth=${await evaluate(`document.documentElement.scrollWidth`)}`,
+  );
   await scrollTo('#audio-play');
   await sleepMs(300);
-  check('transport controls stay on screen on mobile', await evaluate(`(() => { const r = document.querySelector('#audio-play').getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; })()`));
+  check(
+    'transport controls stay on screen on mobile',
+    await evaluate(
+      `(() => { const r = document.querySelector('#audio-play').getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; })()`,
+    ),
+  );
   await shot('05-mobile');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {
+    width: 320,
+    height: 740,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await scrollTo('.masthead');
+  await sleepMs(300);
+  check('English layout fits a 320px screen', await evaluate(`document.documentElement.scrollWidth <= 321`));
+  await shot('11-mobile-320-en');
+
+  console.log('· direct English entry and OS reduced motion');
+  await cdp.send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+  await cdp.send('Page.reload');
+  await waitFor(
+    `document.querySelector('#enter-en') && !document.querySelector('#enter-en').disabled && document.querySelectorAll('.track').length === 16`,
+  );
+  await shot('12-mobile-entry');
+  await click('#enter-en');
+  await waitFor(`document.querySelector('#boot').hidden === true`);
+  check(
+    'English entry opens the English archive',
+    await evaluate(
+      `document.documentElement.lang === 'en' && document.querySelector('#current-title').textContent === 'Orchestral Composition'`,
+    ),
+  );
+  await click('[data-nav="about"]');
+  check(
+    'OS reduced motion bypasses long transitions',
+    await evaluate(
+      `document.querySelector('.shell').dataset.view === 'about' && !document.querySelector('.workspace').classList.contains('changing')`,
+    ),
+  );
+  await shot('13-mobile-profile-en');
 
   await cdp.send('Emulation.clearDeviceMetricsOverride');
   await sleepMs(300);
@@ -290,7 +616,7 @@ async function main() {
   if (vite) vite.kill('SIGKILL');
   rmSync(profile, { recursive: true, force: true });
 
-  const failed = results.filter(r => !r.ok);
+  const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   if (failed.length) {
     console.log('failures:');
@@ -308,10 +634,18 @@ const qaHook = `
     Context.prototype.createBufferSource = function patched() {
       const source = create.call(this);
       const start = source.start.bind(source);
+      const stop = source.stop.bind(source);
+      let record;
       source.start = (...args) => {
-        stats.sfxStarts.push({ at: performance.now(), duration: source.buffer ? source.buffer.duration : 0 });
+        record = { at: performance.now(), duration: source.buffer ? source.buffer.duration : 0, loop: source.loop };
+        stats.sfxStarts.push(record);
         return start(...args);
       };
+      source.stop = (...args) => {
+        if (record) record.stoppedAt = performance.now();
+        return stop(...args);
+      };
+      source.addEventListener('ended', () => { if (record) record.endedAt = performance.now(); });
       return source;
     };
   }
@@ -323,7 +657,7 @@ const qaHook = `
 function run(command, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd: ROOT, stdio: 'ignore' });
-    child.on('exit', code => (code === 0 ? resolve() : reject(new Error(`${command} ${args.join(' ')} exited with ${code}`))));
+    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${command} ${args.join(' ')} exited with ${code}`))));
     child.on('error', reject);
   });
 }
@@ -334,7 +668,9 @@ async function waitForHttp(url, timeout) {
     try {
       const response = await fetch(url);
       if (response.ok) return;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await sleepMs(250);
   }
   throw new Error(`server did not start at ${url}`);
@@ -345,16 +681,18 @@ async function waitForTarget(port, timeout) {
   while (Date.now() - start < timeout) {
     try {
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-      const page = list.find(t => t.type === 'page');
+      const page = list.find((t) => t.type === 'page');
       if (page) return page;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await sleepMs(250);
   }
   throw new Error('Chrome DevTools endpoint did not start');
 }
 
 const SHOTS = process.env.QA_SHOTS !== '0';
-main().catch(error => {
+main().catch((error) => {
   console.error(`QA crashed: ${error.message}`);
   process.exitCode = 1;
 });

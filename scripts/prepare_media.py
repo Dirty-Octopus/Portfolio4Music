@@ -38,6 +38,8 @@ for name in ['clickeffect','notification']:
     sfx[name]=f'media/{dest.name}'
     tracks.append(dict(id=name,title='界面点击音效' if name=='clickeffect' else '启动通知音效',filename=f'SFX/{name}.wav',src=sfx[name],category='sfx',duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
 videos=[]
+for name in ['pad', 'preselect', 'bootupcrt', 'flicker']:
+    ff('-i', ROOT/f'SFX/{name}.wav', '-c:a', 'pcm_s16le', OUT/f'{name}.wav')
 for p in sorted(ROOT.glob('*.mp4')):
     dest=OUT/'showreel.mp4'
     if not dest.exists():

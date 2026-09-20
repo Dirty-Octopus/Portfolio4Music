@@ -352,6 +352,190 @@ test("sfx is silent when disabled", async () => {
   assert.equal(context.sources.length, 0);
 });
 
+test("intro cues play once and retain their tail through hover and click sounds", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = Object.fromEntries(
+    ["bootupcrt", "flicker", "preselect", "clickeffect"].map((name) => [
+      name,
+      new ArrayBuffer(8),
+    ]),
+  );
+  await engine.sfx("bootupcrt");
+  const boot = engine.cueVoice.source;
+  boot.onended();
+  await engine.sfx("flicker");
+  const flicker = engine.cueVoice.source;
+  await engine.sfx("preselect");
+  const hover = engine.sfxVoice.source;
+  await engine.sfx("clickeffect");
+  assert.equal(hover.stopped, 1);
+  assert.equal(flicker.stopped, 0);
+  assert.equal(flicker.loop, undefined);
+  await engine.sfx("flicker");
+  await engine.sfx("bootupcrt");
+  assert.equal(context.sources.length, 4);
+  flicker.onended();
+  assert.equal(engine.cueVoice, null);
+  assert.ok(engine.sfxVoice);
+});
+
+test("SFX off stops both sound lanes without stopping BGM", async () => {
+  const { engine } = makeEngine();
+  engine.rawSfx = Object.fromEntries(
+    ["flicker", "preselect", "pad"].map((name) => [name, new ArrayBuffer(8)]),
+  );
+  await engine.setBgmEnabled(true);
+  await engine.sfx("flicker");
+  await engine.sfx("preselect");
+  const cue = engine.cueVoice.source;
+  const hover = engine.sfxVoice.source;
+  engine.sfxEnabled = false;
+  engine.stopSfx();
+  assert.equal(cue.stopped, 1);
+  assert.equal(hover.stopped, 1);
+  assert.equal(engine.bgmVoice.source.stopped, 0);
+});
+
+test("SFX off invalidates an intro cue still decoding even when re-enabled", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = { flicker: new ArrayBuffer(8) };
+  let finish;
+  context.decodeAudioData = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  const pending = engine.sfx("flicker");
+  engine.sfxEnabled = false;
+  engine.stopSfx();
+  engine.sfxEnabled = true;
+  finish({ duration: 1.364 });
+  await pending;
+  assert.equal(context.sources.length, 0);
+  assert.equal(engine.playedCues.size, 0);
+});
+
+test("concurrent preload groups preserve both early cues and ambient buffers", async () => {
+  const { engine } = makeEngine();
+  const originalFetch = globalThis.fetch;
+  let finishPad;
+  globalThis.fetch = async (path) => ({
+    ok: true,
+    arrayBuffer: () =>
+      path === "pad"
+        ? new Promise((resolve) => {
+            finishPad = resolve;
+          })
+        : Promise.resolve(new ArrayBuffer(8)),
+  });
+  try {
+    const background = engine.preloadSfx({ pad: "pad" });
+    await engine.preloadSfx({ bootupcrt: "boot" });
+    assert.ok(engine.rawSfx.bootupcrt);
+    assert.equal(engine.rawSfx.pad, undefined);
+    finishPad(new ArrayBuffer(16));
+    await background;
+    assert.equal(engine.rawSfx.bootupcrt.byteLength, 8);
+    assert.equal(engine.rawSfx.pad.byteLength, 16);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("gain fades are short enough to mask transport discontinuities", () => {
   assert.ok(FADE_SECONDS > 0 && FADE_SECONDS <= 0.05);
+});
+
+test("BGM loops once and remains independent of interface SFX", async () => {
+  const { engine, context } = makeEngine();
+  engine.rawSfx = { pad: new ArrayBuffer(8), preselect: new ArrayBuffer(8) };
+  await engine.setBgmEnabled(true);
+  const pad = engine.bgmVoice.source;
+  assert.equal(pad.loop, true);
+  assert.equal(pad.started, 1);
+  await engine.setBgmEnabled(true);
+  assert.equal(context.sources.length, 1);
+  await engine.sfx("preselect");
+  engine.sfxEnabled = false;
+  engine.stopSfx();
+  assert.equal(pad.stopped, 0);
+  assert.equal(engine.bgmVoice.source, pad);
+  await engine.setBgmEnabled(false);
+  assert.equal(pad.stopped, 1);
+  assert.equal(engine.bgmVoice, null);
+  assert.equal(engine.bgmEnabled, false);
+});
+
+test("BGM ducks for either content player and recovers after pause or end", async () => {
+  const { engine, audio, video } = makeEngine();
+  engine.rawSfx = { pad: new ArrayBuffer(8) };
+  await engine.setBgmEnabled(true);
+  const gain = engine.bgmVoice.gain.gain;
+  const idle = gain.value;
+  await engine.play("audio", "media/a.mp3");
+  assert.ok(gain.value < idle / 10);
+  await engine.pause("audio");
+  assert.equal(gain.value, idle);
+  await engine.play("video", "media/v.mp4");
+  assert.equal(audio.paused, true);
+  assert.ok(gain.value < idle / 10);
+  video.ended = true;
+  video.dispatchEvent(new Event("ended"));
+  assert.equal(gain.value, idle);
+});
+
+test("disabling BGM during decoding prevents a late start", async () => {
+  const { engine, context } = makeEngine();
+  let finishDecode;
+  context.decodeAudioData = () =>
+    new Promise((resolve) => {
+      finishDecode = resolve;
+    });
+  engine.rawSfx = { pad: new ArrayBuffer(8) };
+  const enabling = engine.setBgmEnabled(true);
+  await Promise.resolve();
+  await engine.setBgmEnabled(false);
+  finishDecode({ duration: 60 });
+  await enabling;
+  assert.equal(context.sources.length, 0);
+  assert.equal(engine.bgmEnabled, false);
+  await engine.setBgmEnabled(true);
+  assert.equal(context.sources.length, 1);
+});
+
+test("rapid BGM enables share decoding and only start the latest request", async () => {
+  const { engine, context } = makeEngine();
+  let finishDecode,
+    decodes = 0;
+  context.decodeAudioData = () => {
+    decodes += 1;
+    return new Promise((resolve) => {
+      finishDecode = resolve;
+    });
+  };
+  engine.rawSfx = { pad: new ArrayBuffer(8) };
+  const first = engine.setBgmEnabled(true);
+  await Promise.resolve();
+  await engine.setBgmEnabled(false);
+  const latest = engine.setBgmEnabled(true);
+  await Promise.resolve();
+  finishDecode({ duration: 60 });
+  await Promise.all([first, latest]);
+  assert.equal(decodes, 1);
+  assert.equal(context.sources.length, 1);
+  assert.equal(engine.bgmEnabled, true);
+});
+
+test("BGM can retry after a decoding error", async () => {
+  const { engine, context, errors } = makeEngine();
+  engine.rawSfx = { pad: new ArrayBuffer(8) };
+  context.decodeAudioData = () => Promise.reject(new Error("decode failed"));
+  await engine.setBgmEnabled(true);
+  assert.equal(engine.bgmEnabled, false);
+  assert.equal(errors.length, 1);
+  context.decodeAudioData = () => Promise.resolve({ duration: 60 });
+  await engine.setBgmEnabled(true);
+  assert.equal(engine.bgmEnabled, true);
+  assert.equal(context.sources.length, 1);
 });

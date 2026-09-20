@@ -54,6 +54,8 @@
       aria-label="进入声音作品集"
     >
       <div class="boot-grid"></div>
+      <div class="crt-power" aria-hidden="true"><i></i></div>
+      <div class="boot-circuit" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="boot-rule">
         <span>DIRTY OCTOPUS</span><span>INTERACTIVE AUDIO PORTFOLIO</span>
       </div>
@@ -62,19 +64,27 @@
           <img src="./art/dirty-octopus-logo.jpg" alt="Dirty Octopus" />
         </div>
         <p class="micro">DIRTY OCTOPUS / AUDIO EXPLORATIONS</p>
-        <h1>ENTER THE<br /><b>SONIC ARCHIVE.</b></h1>
+        <h1>DIRTY OCTOPUS<br /><b>SONIC ARCHIVE.</b></h1>
         <p class="boot-note">音乐创作 / 影视配乐 / 声音设计</p>
         <div class="boot-sequence" aria-hidden="true">
           <span>01. IDENTITY</span><span>02. SOUND</span
           ><span>03. EXPERIENCE</span>
         </div>
-        <button id="enter" class="enter-button">
-          进入作品集 <span>ENTER EXPERIENCE ↗</span>
-        </button>
+        <div
+          class="language-entry"
+          role="group"
+          aria-label="选择语言 / Choose language"
+        >
+          <button id="enter" class="enter-button" data-enter="zh">
+            中文版 <span>进入作品集 <i data-icon="arrow-up-right"></i></span>
+          </button>
+          <button id="enter-en" class="enter-button" data-enter="en">
+            ENGLISH
+            <span>ENTER ARCHIVE <i data-icon="arrow-up-right"></i></span>
+          </button>
+        </div>
         <div class="boot-progress" hidden><i></i></div>
-        <p id="boot-status" class="micro">
-          点击进入，开启声音体验 · 建议佩戴耳机
-        </p>
+        <p id="boot-status" class="micro">选择语言 / SELECT LANGUAGE</p>
       </div>
       <span class="boot-foot micro">SOUND IS A PLACE. STEP INSIDE.</span>
     </div>
@@ -84,6 +94,12 @@
         ><span>THE OCTOPUS AUDIO ARCHIVE</span>
       </div>
       <main class="shell" data-view="overview">
+        <div class="chassis-rail chassis-rail-left" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </div>
+        <div class="chassis-rail chassis-rail-right" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </div>
         <header class="masthead">
           <a href="#" class="brand" aria-label="Dirty Octopus 首页"
             ><div class="identity-mark">
@@ -124,6 +140,14 @@
               <span data-icon="speaker-high"></span
               ><span>SFX <b>ON</b></span></button
             ><button
+              class="sfx-toggle"
+              id="bgm-toggle"
+              aria-label="关闭背景音乐"
+              aria-pressed="true"
+            >
+              <span data-icon="music-notes"></span
+              ><span>BGM <b>ON</b></span></button
+            ><button
               class="system-open"
               id="system-open"
               aria-label="打开系统控制台"
@@ -137,6 +161,33 @@
           <div class="hero-art"></div>
           <div class="halftone"></div>
           <div class="scanlines"></div>
+          <div class="signal-assembly" aria-hidden="true">
+            <div class="signal-fin signal-fin-a"></div>
+            <div class="signal-fin signal-fin-b"></div>
+            <svg class="signal-contour" viewBox="0 0 620 244" fill="none">
+              <g class="contour-frame">
+                <path
+                  d="M10 42H180L222 10H530L568 48H620M48 244V178L87 144H392L438 96H588V14"
+                />
+                <path
+                  d="M115 244V202L153 169H422L464 125H620M283 0V40L320 76H528L554 50H620"
+                />
+              </g>
+              <g class="contour-trace">
+                <path pathLength="100" d="M10 42H180L222 10H530L568 48H620" />
+                <path
+                  pathLength="100"
+                  d="M48 244V178L87 144H392L438 96H588V14"
+                />
+              </g>
+              <path
+                class="contour-bracket"
+                d="M290 105L305 90H372M290 105V130M505 178L490 193H424M505 178V153"
+              />
+            </svg>
+            <div class="signal-slit"></div>
+            <div class="signal-scan"></div>
+          </div>
           <div class="hero-side">
             <span class="vertical-label">AUDIO / VISUAL</span
             ><span class="side-square">D.O.</span>
@@ -144,8 +195,8 @@
           <div class="hero-copy">
             <p class="micro">A COLLECTION OF SOUND & EXPERIMENTS</p>
             <h2>
-              <span>SONIC.</span><br />EXPLORATIONS<span class="title-period"
-                >_</span
+              <span>DIRTY OCTOPUS</span><br /><span class="hero-subtitle"
+                >SONIC EXPLORATIONS.</span
               >
             </h2>
             <div class="hero-sub">
@@ -200,6 +251,9 @@
             <i></i><i></i><i></i><i></i><i></i>
           </div>
         </section>
+        <div class="chassis-bridge" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
         <div class="module-path">
           <span
             >OCTOPUS<span class="path-slash">/</span
@@ -210,15 +264,29 @@
         </div>
         <div class="section-bar">
           <span
-            ><i></i> 作品档案
+            ><i></i> <span data-i18n="archive">作品档案</span>
             <b id="workspace-label">ARCHIVE / OVERVIEW</b></span
           ><span id="system-status"
             >READY TO EXPLORE <i class="online"></i
           ></span>
         </div>
+        <div class="board-notice">
+          <div>
+            <span class="board-marker" aria-hidden="true">::</span>
+            <p>
+              <b data-i18n="welcome">欢迎来到声音档案。</b
+              ><span data-i18n="notice">原创作品、未采用稿件与声音实验。</span>
+            </p>
+          </div>
+          <div class="board-counts">
+            <span><b>16</b> <span data-i18n="works">音乐作品</span></span
+            ><span><b>01</b> <span data-i18n="film">影像作品</span></span
+            ><span><b>02</b> SFX</span>
+          </div>
+        </div>
         <div class="workspace">
           <div class="module-shutter" aria-hidden="true">
-            <span>RECONFIGURING VIEW</span>
+            <i></i><i></i><i></i><span>RECONFIGURING VIEW</span>
           </div>
           <aside class="catalog">
             <h2 class="panel-label">声音索引 <span>INDEX</span></h2>
@@ -513,6 +581,32 @@
         <span>INTERFACE SOUND<small>交互音效</small></span
         ><button id="system-sfx" role="switch" aria-checked="true">ON</button>
       </div>
+      <div class="system-switch-row">
+        <span data-i18n="bgm">背景音乐</span>
+        <button id="system-bgm" role="switch" aria-checked="true">ON</button>
+      </div>
+      <div class="system-section">
+        <h3>
+          <span data-i18n="softness">屏幕柔化</span
+          ><output id="softness-value">0.35</output>
+        </h3>
+        <input
+          id="softness"
+          type="range"
+          min="0"
+          max="0.8"
+          step="0.05"
+          value="0.35"
+          aria-label="屏幕柔化"
+        />
+      </div>
+      <div class="system-section">
+        <h3 data-i18n="language">语言</h3>
+        <div class="system-treatments" role="group" aria-label="Language">
+          <button data-language="zh" aria-pressed="true">中文</button>
+          <button data-language="en" aria-pressed="false">ENGLISH</button>
+        </div>
+      </div>
       <div class="system-section">
         <h3>TRANSPORT STATE <span>播放状态</span></h3>
         <div class="system-state" id="system-playback-state">IDLE / 待机</div>
@@ -534,6 +628,7 @@
       </div>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div class="screen-diffusion" aria-hidden="true"></div>
     <audio id="audio" preload="metadata"></audio>
     <script type="module" src="/src/main.js"></script>
   </body>
