@@ -1,0 +1,22 @@
+SoundTouchJS
+===========
+
+The audio scrubber uses the unmodified @soundtouchjs/audio-worklet package
+(version 2.1.1), with @soundtouchjs/core, @soundtouchjs/worklet-base, and
+@soundtouchjs/interpolation-strategy-lanczos. These packages are licensed
+under the Mozilla Public License, version 2.0.
+
+Source code and package versions:
+https://github.com/cutterbl/SoundTouchJS
+https://www.npmjs.com/package/@soundtouchjs/audio-worklet/v/2.1.1
+See package-lock.json for the exact dependency versions.
+
+License notice supplied by the packages:
+
+Mozilla Public License Version 2.0
+
+This package is licensed under the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can
+obtain one at https://mozilla.org/MPL/2.0/.
+
+Full license text: https://www.mozilla.org/en-US/MPL/2.0/

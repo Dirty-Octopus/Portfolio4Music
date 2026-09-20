@@ -5,6 +5,7 @@ import "./style.css";
 import "./forum.css";
 import "./choreography.css";
 import "./experience.css";
+import "./refinements.css";
 import { initTactileExperience } from "./tactile.js";
 import { t, trackTitle, setLanguage } from "./i18n.js";
 import {
@@ -28,7 +29,11 @@ import arrowIcon from "@phosphor-icons/core/assets/regular/arrow-up-right.svg?ra
 import slidersIcon from "@phosphor-icons/core/assets/regular/sliders-horizontal.svg?raw";
 import expandIcon from "@phosphor-icons/core/assets/regular/arrows-out-simple.svg?raw";
 import musicIcon from "@phosphor-icons/core/assets/regular/music-notes.svg?raw";
+import caretUpIcon from "@phosphor-icons/core/assets/regular/caret-up.svg?raw";
+import caretDownIcon from "@phosphor-icons/core/assets/regular/caret-down.svg?raw";
 const icons = {
+  "caret-down": caretDownIcon,
+  "caret-up": caretUpIcon,
   "music-notes": musicIcon,
   "sliders-horizontal": slidersIcon,
   "arrows-out-simple": expandIcon,
@@ -125,6 +130,9 @@ const sfxReady = engine.preloadSfx(
 engine.preloadSfx({
   preselect: asset("media/preselect.wav"),
   clack: asset("media/clack.wav"),
+  lowerclack: asset("media/lowerclack.wav"),
+  clickevent: asset("media/clickevent.wav"),
+  suprise: asset("media/suprise.wav"),
   neuraasliderto: asset("media/neuraasliderto.wav"),
   neuraasliderfrom: asset("media/neuraasliderfrom.wav"),
   round: asset("media/round.wav"),
@@ -195,6 +203,12 @@ function updatePlayback() {
     audioPlaying ? t("暂停音乐", "Pause audio") : t("播放音乐", "Play audio"),
   );
   $("#video-play").innerHTML = videoPlaying ? pauseIcon : playIcon;
+  $("#dock-play").innerHTML = audioPlaying ? pauseIcon : playIcon;
+  $("#dock-play").setAttribute(
+    "aria-label",
+    audioPlaying ? t("暂停音乐", "Pause audio") : t("播放音乐", "Play audio"),
+  );
+  syncDockLabel();
   $("#video-play").setAttribute(
     "aria-label",
     videoPlaying ? t("暂停视频", "Pause video") : t("播放视频", "Play video"),
@@ -365,8 +379,9 @@ document.addEventListener(
       !event.target.closest("button,a,input[type=range]")
     )
       return;
-    if (event.target.closest("#sfx-toggle,#system-sfx")) return;
-    engine.sfx("clickeffect");
+    if (event.target.closest("#sfx-toggle,#system-sfx,#system-bgm,.playground"))
+      return;
+    engine.sfx("clickevent");
   },
   true,
 );
@@ -374,7 +389,7 @@ $("#sfx-toggle").addEventListener("click", () => {
   engine.sfxEnabled = !engine.sfxEnabled;
   if (!engine.sfxEnabled) {
     engine.stopSfx();
-  } else engine.sfx("clickeffect");
+  } else engine.sfx("clickevent");
   syncSoundControls();
 });
 function syncSoundControls() {
@@ -457,11 +472,40 @@ $("#track-list").addEventListener("click", (event) => {
   else playTrack(track);
 });
 $("#audio-play").addEventListener("click", () => engine.toggle("audio"));
+$("#dock-play").addEventListener("click", () => engine.toggle("audio"));
+function syncDockLabel() {
+  const collapsed = $(".transport").classList.contains("collapsed");
+  const label = collapsed
+    ? t("展开播放器", "Expand player")
+    : t("收起播放器", "Collapse player");
+  $("#dock-toggle").setAttribute("aria-label", label);
+  $("#dock-toggle").title = label;
+  $("#dock-toggle").setAttribute("aria-expanded", String(!collapsed));
+  $("#dock-toggle").innerHTML = collapsed ? caretUpIcon : caretDownIcon;
+}
+$("#dock-toggle").addEventListener("click", () => {
+  const dock = $(".transport");
+  const before = dock.getBoundingClientRect();
+  const collapsed = dock.classList.toggle("collapsed");
+  document.body.classList.toggle("dock-collapsed", collapsed);
+  syncDockLabel();
+  const after = dock.getBoundingClientRect();
+  if (motionAllowed())
+    dock.animate(
+      [
+        {
+          transform: `translateY(${before.bottom - after.bottom}px) scale(${before.width / after.width},${before.height / after.height})`,
+        },
+        { transform: "none" },
+      ],
+      { duration: 460, easing: "cubic-bezier(.2,.75,.2,1)" },
+    );
+});
 $("#video-play").addEventListener("click", () => engine.toggle("video"));
 $("#video-overlay").addEventListener("click", () => engine.play("video"));
 video.addEventListener("click", () => {
   if (!video.paused) {
-    engine.sfx("clickeffect");
+    engine.sfx("clickevent");
     engine.pause("video");
   }
 });

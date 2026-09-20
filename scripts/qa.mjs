@@ -3,14 +3,14 @@
  * interface SFX, boot flow, responsive layout. Zero dependencies: drives an
  * installed Chrome over the DevTools protocol.
  */
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { setTimeout as sleep } from 'node:timers/promises';
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const QA_DIR = join(ROOT, '.qa');
+const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const QA_DIR = join(ROOT, ".qa");
 const PORT = Number(process.env.QA_PORT || 5199);
 const DEBUG_PORT = Number(process.env.QA_DEBUG_PORT || 9333);
 const BASE = process.env.QA_URL || `http://127.0.0.1:${PORT}/`;
@@ -18,18 +18,20 @@ const REMOTE = Boolean(process.env.QA_URL);
 const CHROME =
   process.env.CHROME ||
   [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/chromium',
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
   ].find((candidate) => existsSync(candidate));
 
 const results = [];
-function check(name, ok, detail = '') {
+function check(name, ok, detail = "") {
   results.push({ name, ok: Boolean(ok), detail });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  — ${detail}` : ""}`,
+  );
 }
 
 class CDP {
@@ -38,7 +40,7 @@ class CDP {
     this.id = 0;
     this.pending = new Map();
     this.handlers = new Map();
-    ws.addEventListener('message', (event) => {
+    ws.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (message.id && this.pending.has(message.id)) {
         const { resolve, reject } = this.pending.get(message.id);
@@ -47,7 +49,8 @@ class CDP {
         else resolve(message.result);
         return;
       }
-      for (const handler of this.handlers.get(message.method) || []) handler(message.params);
+      for (const handler of this.handlers.get(message.method) || [])
+        handler(message.params);
     });
   }
   send(method, params = {}) {
@@ -64,7 +67,10 @@ class CDP {
   }
   once(method, timeout = 15000) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`${method} timed out`)), timeout);
+      const timer = setTimeout(
+        () => reject(new Error(`${method} timed out`)),
+        timeout,
+      );
       const handler = (params) => {
         clearTimeout(timer);
         this.handlers.set(
@@ -84,64 +90,108 @@ class CDP {
 const sleepMs = (ms) => sleep(ms);
 const errors = [];
 const badResponses = [];
+const resources = { vite: null, chrome: null, cdp: null, profile: null };
+function cleanup() {
+  resources.cdp?.close();
+  resources.chrome?.kill("SIGKILL");
+  if (resources.vite?.pid) {
+    try {
+      process.kill(-resources.vite.pid, "SIGKILL");
+    } catch {
+      /* Already stopped. */
+    }
+  }
+  if (resources.profile)
+    rmSync(resources.profile, { recursive: true, force: true });
+}
 
 async function main() {
-  if (!CHROME) throw new Error('Chrome not found; set CHROME=/path/to/chrome');
+  if (!CHROME) throw new Error("Chrome not found; set CHROME=/path/to/chrome");
   mkdirSync(QA_DIR, { recursive: true });
 
   let vite = null;
   if (REMOTE) {
     console.log(`· checking remote site ${BASE}`);
   } else {
-    const preview = process.env.QA_PREVIEW === '1';
+    const preview = process.env.QA_PREVIEW === "1";
     if (preview) {
-      console.log('· building production bundle');
-      await run('npx', ['vite', 'build']);
+      console.log("· building production bundle");
+      await run("npx", ["vite", "build"]);
     }
-    console.log(preview ? '· starting Vite preview server' : '· starting Vite dev server');
-    const viteArgs = ['vite', preview ? 'preview' : 'dev', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'];
-    vite = spawn('npx', viteArgs, { cwd: ROOT, stdio: 'ignore' });
+    console.log(
+      preview ? "· starting Vite preview server" : "· starting Vite dev server",
+    );
+    const viteArgs = [
+      "vite",
+      preview ? "preview" : "dev",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(PORT),
+      "--strictPort",
+    ];
+    try {
+      await fetch(BASE);
+      throw new Error(
+        `QA port ${PORT} is already in use; choose another QA_PORT`,
+      );
+    } catch (error) {
+      if (!error.cause) throw error;
+    }
+    vite = spawn("npx", viteArgs, {
+      cwd: ROOT,
+      stdio: "ignore",
+      detached: true,
+    });
+    resources.vite = vite;
   }
   await waitForHttp(BASE, 40000);
 
-  console.log('· starting headless Chrome');
+  console.log("· starting headless Chrome");
   const profile = join(tmpdir(), `portfolio-qa-${Date.now()}`);
+  resources.profile = profile;
   const chrome = spawn(
     CHROME,
     [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
+      "--headless=new",
+      "--disable-gpu",
+      "--no-first-run",
+      "--no-default-browser-check",
       `--remote-debugging-port=${DEBUG_PORT}`,
       `--user-data-dir=${profile}`,
-      '--window-size=1440,980',
-      '--hide-scrollbars',
-      'about:blank',
+      "--window-size=1440,980",
+      "--hide-scrollbars",
+      "about:blank",
     ],
-    { stdio: 'ignore' },
+    { stdio: "ignore" },
   );
 
   const target = await waitForTarget(DEBUG_PORT, 20000);
+  resources.chrome = chrome;
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
-    ws.addEventListener('open', resolve, { once: true });
-    ws.addEventListener('error', reject, { once: true });
+    ws.addEventListener("open", resolve, { once: true });
+    ws.addEventListener("error", reject, { once: true });
   });
   const cdp = new CDP(ws);
-  cdp.on('Runtime.exceptionThrown', (params) => errors.push(params.exceptionDetails?.text || 'exception'));
-  cdp.on('Runtime.consoleAPICalled', (params) => {
-    if (params.type === 'error') errors.push(params.args.map((a) => a.value ?? a.description).join(' '));
+  resources.cdp = cdp;
+  cdp.on("Runtime.exceptionThrown", (params) =>
+    errors.push(params.exceptionDetails?.text || "exception"),
+  );
+  cdp.on("Runtime.consoleAPICalled", (params) => {
+    if (params.type === "error")
+      errors.push(params.args.map((a) => a.value ?? a.description).join(" "));
   });
-  cdp.on('Network.responseReceived', (params) => {
-    if (params.response.status >= 400) badResponses.push(`${params.response.status} ${params.response.url}`);
+  cdp.on("Network.responseReceived", (params) => {
+    if (params.response.status >= 400)
+      badResponses.push(`${params.response.status} ${params.response.url}`);
   });
 
-  await cdp.send('Page.enable');
-  await cdp.send('Runtime.enable');
-  await cdp.send('Network.enable');
-  await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: qaHook });
-  await cdp.send('Emulation.setDeviceMetricsOverride', {
+  await cdp.send("Page.enable");
+  await cdp.send("Runtime.enable");
+  await cdp.send("Network.enable");
+  await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: qaHook });
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 900,
     deviceScaleFactor: 1,
@@ -149,12 +199,15 @@ async function main() {
   });
 
   const evaluate = async (expression, awaitPromise = true) => {
-    const { result, exceptionDetails } = await cdp.send('Runtime.evaluate', {
+    const { result, exceptionDetails } = await cdp.send("Runtime.evaluate", {
       expression,
       awaitPromise,
       returnByValue: true,
     });
-    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
+    if (exceptionDetails)
+      throw new Error(
+        exceptionDetails.exception?.description || exceptionDetails.text,
+      );
     return result.value;
   };
   const scrollTo = (selector) =>
@@ -173,19 +226,19 @@ async function main() {
     if (!box) throw new Error(`missing element ${selector}`);
     const x = box.x + box.w / 2,
       y = box.y + box.h / 2;
-    await cdp.send('Input.dispatchMouseEvent', {
-      type: 'mousePressed',
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
       x,
       y,
-      button: 'left',
+      button: "left",
       clickCount: 1,
       buttons: 1,
     });
-    await cdp.send('Input.dispatchMouseEvent', {
-      type: 'mouseReleased',
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
       x,
       y,
-      button: 'left',
+      button: "left",
       clickCount: 1,
       buttons: 0,
     });
@@ -196,39 +249,39 @@ async function main() {
     const y = box.y + box.h / 2;
     const x1 = box.x + box.w * from,
       x2 = box.x + box.w * to;
-    await cdp.send('Input.dispatchMouseEvent', {
-      type: 'mousePressed',
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
       x: x1,
       y,
-      button: 'left',
+      button: "left",
       clickCount: 1,
       buttons: 1,
     });
     for (let i = 1; i <= 6; i++) {
-      await cdp.send('Input.dispatchMouseEvent', {
-        type: 'mouseMoved',
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
         x: x1 + ((x2 - x1) * i) / 6,
         y,
-        button: 'left',
+        button: "left",
         buttons: 1,
       });
       await sleepMs(16);
     }
-    await cdp.send('Input.dispatchMouseEvent', {
-      type: 'mouseReleased',
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
       x: x2,
       y,
-      button: 'left',
+      button: "left",
       clickCount: 1,
       buttons: 0,
     });
   };
   const shot = async (name) => {
     if (!SHOTS) return;
-    const { data } = await cdp.send('Page.captureScreenshot', {
-      format: 'png',
+    const { data } = await cdp.send("Page.captureScreenshot", {
+      format: "png",
     });
-    writeFileSync(join(QA_DIR, `${name}.png`), Buffer.from(data, 'base64'));
+    writeFileSync(join(QA_DIR, `${name}.png`), Buffer.from(data, "base64"));
   };
   const waitFor = async (expression, timeout = 8000, label = expression) => {
     const start = Date.now();
@@ -239,41 +292,77 @@ async function main() {
     throw new Error(`timeout waiting for ${label}`);
   };
 
-  console.log('· loading page');
-  const loaded = cdp.once('Page.loadEventFired');
-  await cdp.send('Page.navigate', { url: BASE });
+  console.log("· loading page");
+  const loaded = cdp.once("Page.loadEventFired");
+  await cdp.send("Page.navigate", { url: BASE });
   await loaded;
   await sleepMs(900);
-  await shot('01-boot');
+  await shot("01-boot");
 
-  check('boot overlay is shown first', await evaluate(`getComputedStyle(document.querySelector('#boot')).display !== 'none'`));
-  check('site is inert behind the boot overlay', await evaluate(`document.querySelector('#site').inert === true`));
-  check('manifest renders 16 audio tracks', (await evaluate(`document.querySelectorAll('.track').length`)) === 16);
-  check('all 6 filters render', (await evaluate(`document.querySelectorAll('.filter').length`)) === 6);
-  check('entry offers Chinese and English', await evaluate(`document.querySelectorAll('[data-enter]').length === 2`));
+  check(
+    "boot overlay is shown first",
+    await evaluate(
+      `getComputedStyle(document.querySelector('#boot')).display !== 'none'`,
+    ),
+  );
+  check(
+    "site is inert behind the boot overlay",
+    await evaluate(`document.querySelector('#site').inert === true`),
+  );
+  check(
+    "manifest renders 16 audio tracks",
+    (await evaluate(`document.querySelectorAll('.track').length`)) === 16,
+  );
+  check(
+    "all 6 filters render",
+    (await evaluate(`document.querySelectorAll('.filter').length`)) === 6,
+  );
+  check(
+    "entry offers Chinese and English",
+    await evaluate(`document.querySelectorAll('[data-enter]').length === 2`),
+  );
 
-  console.log('· entering the experience');
-  await click('#enter');
-  await waitFor(`document.querySelector('#boot').classList.contains('booting')`);
+  console.log("· entering the experience");
+  await click("#enter");
+  await waitFor(
+    `document.querySelector('#boot').classList.contains('booting')`,
+  );
   await sleepMs(180);
-  await shot('14-crt-ignition');
-  await waitFor(`document.querySelector('#boot').hidden === true`, 8000, 'boot dismissal');
+  await shot("14-crt-ignition");
+  await waitFor(
+    `document.querySelector('#boot').hidden === true`,
+    8000,
+    "boot dismissal",
+  );
   await sleepMs(2200);
-  check('site becomes interactive after entering', await evaluate(`document.querySelector('#site').inert === false`));
+  check(
+    "site becomes interactive after entering",
+    await evaluate(`document.querySelector('#site').inert === false`),
+  );
   const sfxAfterEnter = await evaluate(`window.__qa.sfxStarts`);
   check(
-    'CRT power-on cue plays once on entry',
-    sfxAfterEnter.filter((source) => !source.loop && Math.abs(source.duration - 1) < 0.002).length === 1,
+    "CRT power-on cue plays once on entry",
+    sfxAfterEnter.filter(
+      (source) => !source.loop && Math.abs(source.duration - 1) < 0.002,
+    ).length === 1,
     `voices=${sfxAfterEnter.length}`,
   );
-  const flickers = sfxAfterEnter.filter((source) => Math.abs(source.duration - 1.364127) < 0.002);
-  check(
-    'bright flicker plays once with its full natural tail',
-    flickers.length === 1 && !flickers[0].loop && !flickers[0].stoppedAt && flickers[0].endedAt - flickers[0].at >= 1250,
+  const flickers = sfxAfterEnter.filter(
+    (source) => Math.abs(source.duration - 1.364127) < 0.002,
   );
-  check('flicker follows the CRT startup as a separate reveal cue', flickers[0]?.at - sfxAfterEnter[0]?.at >= 2900);
   check(
-    'navigation and hero have shaped silhouettes',
+    "bright flicker plays once with its full natural tail",
+    flickers.length === 1 &&
+      !flickers[0].loop &&
+      !flickers[0].stoppedAt &&
+      flickers[0].endedAt - flickers[0].at >= 1250,
+  );
+  check(
+    "flicker follows the CRT startup as a separate reveal cue",
+    flickers[0]?.at - sfxAfterEnter[0]?.at >= 2900,
+  );
+  check(
+    "navigation and hero have shaped silhouettes",
     await evaluate(`
     ['.nav', '.hero'].every(selector => getComputedStyle(document.querySelector(selector)).clipPath.startsWith('polygon'))
   `),
@@ -284,32 +373,43 @@ async function main() {
   })`);
   await sleepMs(600);
   check(
-    'structured contour traces remain animated without random texture fins',
+    "structured contour traces remain animated without random texture fins",
     await evaluate(`
     !document.querySelector('.signal-fin,.signal-slit') &&
     getComputedStyle(document.querySelector('.contour-trace')).strokeDashoffset !== ${JSON.stringify(motionBefore.trace)}
   `),
   );
-  check('banner contours are linework, never opaque filled patches', await evaluate(`getComputedStyle(document.querySelector('.signal-contour')).fill === 'none'`));
   check(
-    'pad starts in a continuous loop by default',
-    sfxAfterEnter.some((source) => source.loop && Math.abs(source.duration - 60) < 0.1),
+    "banner contours are linework, never opaque filled patches",
+    await evaluate(
+      `getComputedStyle(document.querySelector('.signal-contour')).fill === 'none'`,
+    ),
   );
   check(
-    'Chinese entry localizes content',
-    await evaluate(`document.documentElement.lang === 'zh-CN' && document.querySelector('#current-title').textContent === '管弦乐创作'`),
+    "pad starts in a continuous loop by default",
+    sfxAfterEnter.some(
+      (source) => source.loop && Math.abs(source.duration - 60) < 0.1,
+    ),
+  );
+  check(
+    "Chinese entry localizes content",
+    await evaluate(
+      `document.documentElement.lang === 'zh-CN' && document.querySelector('#current-title').textContent === '管弦乐创作'`,
+    ),
   );
   const hoverBox = await boxOf('[data-nav="audio"]');
   const beforeHover = await evaluate(`window.__qa.sfxStarts.length`);
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
     x: hoverBox.x + 20,
     y: hoverBox.y + 20,
   });
   await sleepMs(300);
   check(
-    'preselection triggers its own sound',
-    await evaluate(`window.__qa.sfxStarts.length > ${beforeHover} && window.__qa.sfxStarts.at(-1).duration < 1`),
+    "preselection triggers its own sound",
+    await evaluate(
+      `window.__qa.sfxStarts.length > ${beforeHover} && window.__qa.sfxStarts.at(-1).duration < 1`,
+    ),
   );
   const fastHovers = await evaluate(`(async () => {
     const before = window.__qa.sfxStarts.filter(s => Math.abs(s.duration - .166667) < .002).length;
@@ -319,367 +419,746 @@ async function main() {
     }
     return window.__qa.sfxStarts.filter(s => Math.abs(s.duration - .166667) < .002).length - before;
   })()`);
-  check('rapid preselection retriggers across all four controls', fastHovers === 4);
-  await click('#sfx-toggle');
+  check(
+    "rapid preselection retriggers across all four controls",
+    fastHovers === 4,
+  );
+  await click("#sfx-toggle");
   const beforeSilentHover = await evaluate(`window.__qa.sfxStarts.length`);
   const hoverVideoBox = await boxOf('[data-nav="video"]');
-  await cdp.send('Input.dispatchMouseEvent', {
-    type: 'mouseMoved',
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
     x: hoverVideoBox.x + 20,
     y: hoverVideoBox.y + 20,
   });
   await sleepMs(200);
   check(
-    'SFX off silences preselection while BGM stays enabled',
+    "SFX off silences preselection while BGM stays enabled",
     await evaluate(
       `window.__qa.sfxStarts.length === ${beforeSilentHover} && document.querySelector('#bgm-toggle').getAttribute('aria-pressed') === 'true'`,
     ),
   );
-  await click('#bgm-toggle');
-  check('BGM can be disabled separately', await evaluate(`document.querySelector('#bgm-toggle').getAttribute('aria-pressed') === 'false'`));
-  await click('#bgm-toggle');
+  await click("#bgm-toggle");
+  check(
+    "BGM can be disabled separately",
+    await evaluate(
+      `document.querySelector('#bgm-toggle').getAttribute('aria-pressed') === 'false'`,
+    ),
+  );
+  await click("#bgm-toggle");
   await sleepMs(200);
   check(
-    'BGM restarts while SFX remains off',
+    "BGM restarts while SFX remains off",
     await evaluate(
       `window.__qa.sfxStarts.filter(source => source.loop).length === 2 && document.querySelector('#sfx-toggle').getAttribute('aria-pressed') === 'false'`,
     ),
   );
-  await click('#sfx-toggle');
-  await shot('02-main');
-  check('overview contains the personal biography instead of the archive grid', await evaluate(`
+  await click("#sfx-toggle");
+  await shot("02-main");
+  check(
+    "overview contains the personal biography instead of the archive grid",
+    await evaluate(`
     document.querySelector('.biography').offsetWidth > 0 && document.querySelector('.audio-library').offsetWidth === 0 &&
     document.querySelector('.biography').textContent.includes('Biobyte Studio')
-  `));
-  check('transport is a fixed dock outside the animated shell', await evaluate(`
+  `),
+  );
+  check(
+    "transport is a fixed dock outside the animated shell",
+    await evaluate(`
     getComputedStyle(document.querySelector('.transport')).position === 'fixed' && !document.querySelector('.shell .transport')
-  `));
+  `),
+  );
 
   await click('[data-nav="audio"]');
-  await waitFor(`document.querySelector('.shell').dataset.view === 'audio' && !document.querySelector('.workspace').inert`);
+  await waitFor(
+    `document.querySelector('.shell').dataset.view === 'audio' && !document.querySelector('.workspace').inert`,
+  );
 
-  console.log('· playback checks');
-  await click('.track');
+  console.log("· playback checks");
+  await click(".track");
   await sleepMs(600);
-  check('clicking a track starts audio playback', await evaluate(`!document.querySelector('#audio').paused`));
   check(
-    'player shows the selected track',
+    "clicking a track starts audio playback",
+    await evaluate(`!document.querySelector('#audio').paused`),
+  );
+  check(
+    "player shows the selected track",
     await evaluate(
       `document.querySelector('#current-title').textContent.length > 0 && document.querySelector('#play-state').textContent.includes('播放')`,
     ),
   );
-  check('disc animates while playing', await evaluate(`document.querySelector('#disc').classList.contains('spinning')`));
+  check(
+    "disc animates while playing",
+    await evaluate(
+      `document.querySelector('#disc').classList.contains('spinning')`,
+    ),
+  );
   const seekA = await evaluate(`document.querySelector('#audio').currentTime`);
   await sleepMs(1400);
   const seekB = await evaluate(`document.querySelector('#audio').currentTime`);
-  check('audio position advances', seekB > seekA + 0.5, `${seekA.toFixed(2)}s → ${seekB.toFixed(2)}s`);
+  check(
+    "audio position advances",
+    seekB > seekA + 0.5,
+    `${seekA.toFixed(2)}s → ${seekB.toFixed(2)}s`,
+  );
   const clicks = await evaluate(`window.__qa.sfxStarts.length`);
-  check('clicking a control plays the interface SFX', clicks > sfxAfterEnter.length, `voices=${clicks}`);
-  const lastSfx = await evaluate(`window.__qa.sfxStarts[window.__qa.sfxStarts.length - 1].duration`);
-  check('interface SFX is the short click, not the notification', lastSfx < 1, `${Number(lastSfx).toFixed(2)}s`);
+  check(
+    "clicking a control plays the interface SFX",
+    clicks > sfxAfterEnter.length,
+    `voices=${clicks}`,
+  );
+  const lastSfx = await evaluate(
+    `window.__qa.sfxStarts[window.__qa.sfxStarts.length - 1].duration`,
+  );
+  check(
+    "interface SFX is the short click, not the notification",
+    lastSfx < 1,
+    `${Number(lastSfx).toFixed(2)}s`,
+  );
 
-  console.log('· drag the audio progress bar');
-  await drag('#audio-seek', 0.15, 0.72);
+  console.log("· drag the audio progress bar");
+  await drag("#audio-seek", 0.15, 0.72);
   await sleepMs(700);
   const audioAfterDrag = await evaluate(
     `(() => { const a = document.querySelector('#audio'); return { time: a.currentTime, duration: a.duration, paused: a.paused }; })()`,
   );
   check(
-    'audio seek follows the drag',
+    "audio seek follows the drag",
     Math.abs(audioAfterDrag.time / audioAfterDrag.duration - 0.72) < 0.06,
     `${((audioAfterDrag.time / audioAfterDrag.duration) * 100).toFixed(1)}%`,
   );
-  check('audio keeps playing after the drag', audioAfterDrag.paused === false);
-  await shot('03-audio-playing');
+  check("audio keeps playing after the drag", audioAfterDrag.paused === false);
+  await shot("03-audio-playing");
 
-  console.log('· video playback and exclusivity');
+  console.log("· video playback and exclusivity");
   await click('[data-nav="video"]');
-  await waitFor(`document.querySelector('.shell').dataset.view === 'video' && !document.querySelector('.workspace').inert`);
-  await click('#video-overlay');
+  await waitFor(
+    `document.querySelector('.shell').dataset.view === 'video' && !document.querySelector('.workspace').inert`,
+  );
+  await click("#video-overlay");
   await sleepMs(900);
-  check('video plays from the overlay', await evaluate(`!document.querySelector('#video').paused`));
-  check('starting video pauses audio (no overlap)', await evaluate(`document.querySelector('#audio').paused === true`));
-  check('video stage switches to playing state', await evaluate(`document.querySelector('#video-stage').classList.contains('is-playing')`));
+  check(
+    "video plays from the overlay",
+    await evaluate(`!document.querySelector('#video').paused`),
+  );
+  check(
+    "starting video pauses audio (no overlap)",
+    await evaluate(`document.querySelector('#audio').paused === true`),
+  );
+  check(
+    "video stage switches to playing state",
+    await evaluate(
+      `document.querySelector('#video-stage').classList.contains('is-playing')`,
+    ),
+  );
   const vA = await evaluate(`document.querySelector('#video').currentTime`);
   await sleepMs(1200);
   const vB = await evaluate(`document.querySelector('#video').currentTime`);
-  check('video position advances', vB > vA + 0.4, `${vA.toFixed(2)}s → ${vB.toFixed(2)}s`);
-  await shot('04-video-playing');
+  check(
+    "video position advances",
+    vB > vA + 0.4,
+    `${vA.toFixed(2)}s → ${vB.toFixed(2)}s`,
+  );
+  await shot("04-video-playing");
 
-  console.log('· drag the video progress bar');
-  await drag('#video-seek', 0.1, 0.55);
+  console.log("· drag the video progress bar");
+  await drag("#video-seek", 0.1, 0.55);
   await sleepMs(900);
   const videoAfterDrag = await evaluate(
     `(() => { const v = document.querySelector('#video'); return { time: v.currentTime, duration: v.duration, paused: v.paused }; })()`,
   );
   check(
-    'video seek follows the drag',
+    "video seek follows the drag",
     Math.abs(videoAfterDrag.time / videoAfterDrag.duration - 0.55) < 0.06,
     `${((videoAfterDrag.time / videoAfterDrag.duration) * 100).toFixed(1)}%`,
   );
-  check('video keeps playing after the drag', videoAfterDrag.paused === false);
+  check("video keeps playing after the drag", videoAfterDrag.paused === false);
 
-  console.log('· switching back to audio');
-  await click('#audio-play');
+  console.log("· switching back to audio");
+  await click("#audio-play");
   await sleepMs(800);
   check(
-    'audio resumes and pauses video',
-    await evaluate(`!document.querySelector('#audio').paused && document.querySelector('#video').paused`),
+    "audio resumes and pauses video",
+    await evaluate(
+      `!document.querySelector('#audio').paused && document.querySelector('#video').paused`,
+    ),
   );
 
-  console.log('· keyboard shortcuts');
+  console.log("· keyboard shortcuts");
   await evaluate(`document.activeElement && document.activeElement.blur()`);
   await sleepMs(200);
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyDown',
-    key: ' ',
-    code: 'Space',
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: " ",
+    code: "Space",
     windowsVirtualKeyCode: 32,
   });
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyUp',
-    key: ' ',
-    code: 'Space',
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: " ",
+    code: "Space",
     windowsVirtualKeyCode: 32,
   });
   await sleepMs(400);
-  check('space bar pauses playback', await evaluate(`document.querySelector('#audio').paused`));
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyDown',
-    key: '/',
-    code: 'Slash',
+  check(
+    "space bar pauses playback",
+    await evaluate(`document.querySelector('#audio').paused`),
+  );
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "/",
+    code: "Slash",
     windowsVirtualKeyCode: 191,
   });
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyUp',
-    key: '/',
-    code: 'Slash',
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "/",
+    code: "Slash",
     windowsVirtualKeyCode: 191,
   });
   await sleepMs(1800);
-  check('slash focuses the search field', await evaluate(`document.activeElement === document.querySelector('#search')`));
-  await cdp.send('Input.insertText', { text: '凯尔特' });
+  check(
+    "slash focuses the search field",
+    await evaluate(
+      `document.activeElement === document.querySelector('#search')`,
+    ),
+  );
+  await cdp.send("Input.insertText", { text: "凯尔特" });
   await sleepMs(500);
-  check('search narrows the track list', (await evaluate(`document.querySelectorAll('.track').length`)) === 2);
+  check(
+    "search narrows the track list",
+    (await evaluate(`document.querySelectorAll('.track').length`)) === 2,
+  );
   await evaluate(
     `(() => { const input = document.querySelector('#search'); input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true })); input.blur(); })()`,
   );
   await sleepMs(400);
 
-  console.log('· filters, loop, volume');
-  await evaluate(`[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'game').click()`);
+  console.log("· filters, loop, volume");
+  await evaluate(
+    `[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'game').click()`,
+  );
   await sleepMs(400);
-  check('category filter narrows the list', (await evaluate(`document.querySelectorAll('.track').length`)) === 4);
-  await evaluate(`[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'all').click()`);
+  check(
+    "category filter narrows the list",
+    (await evaluate(`document.querySelectorAll('.track').length`)) === 4,
+  );
+  await evaluate(
+    `[...document.querySelectorAll('.filter')].find(b => b.dataset.category === 'all').click()`,
+  );
   await sleepMs(300);
-  await click('#loop');
+  await click("#loop");
   await sleepMs(300);
   check(
-    'loop toggle reports its state',
+    "loop toggle reports its state",
     await evaluate(
       `document.querySelector('#loop').getAttribute('aria-pressed') === 'true' && document.querySelector('#toast').textContent.includes('单曲循环')`,
     ),
   );
-  await click('#loop');
-  await click('#mute');
+  await click("#loop");
+  await click("#mute");
   await sleepMs(300);
-  check('mute updates the master output label', await evaluate(`document.querySelector('#volume-value').textContent === '静音'`));
-  await click('#mute');
+  check(
+    "mute updates the master output label",
+    await evaluate(
+      `document.querySelector('#volume-value').textContent === '静音'`,
+    ),
+  );
+  await click("#mute");
 
-  console.log('· view morphs, language and settings');
+  console.log("· view morphs, language and settings");
   await click('[data-nav="overview"]');
   await sleepMs(420);
   check(
-    'the whole content plane animates as one continuous surface',
+    "the whole content plane animates as one continuous surface",
     await evaluate(
       `document.querySelector('.workspace').inert && document.querySelector('.shell').dataset.view === 'audio' && !document.querySelector('.module-shutter')`,
     ),
   );
-  await shot('06-morph');
+  await shot("06-morph");
   await waitFor(`document.querySelector('.shell').dataset.view === 'overview'`);
   await sleepMs(1800);
   check(
-    'transition completes without a blocking shutter',
+    "transition completes without a blocking shutter",
     await evaluate(`!document.querySelector('.workspace').inert`),
   );
-  await shot('07-audio-view');
+  await shot("07-audio-view");
   await click('[data-nav="video"]');
-  await waitFor(`document.querySelector('.workspace').getAnimations()[0]?.currentTime > 100`);
+  await waitFor(
+    `document.querySelector('.module-wipe i').getAnimations()[0]?.currentTime > 100`,
+  );
   const retarget = await evaluate(`(() => {
-    const workspace = document.querySelector('.workspace');
+    const workspace = document.querySelector('.module-wipe i');
     const animation = workspace.getAnimations()[0];
     const before = animation.currentTime;
     document.querySelector('[data-nav="fun"]').click();
     const after = workspace.getAnimations()[0];
     return { sameAnimation: animation === after, before, after: after.currentTime };
   })()`);
-  check('a new destination preserves the running transition position', retarget.sameAnimation && Math.abs(retarget.after - retarget.before) < 1 && retarget.after > 100, JSON.stringify(retarget));
+  check(
+    "a new destination preserves the running transition position",
+    retarget.sameAnimation &&
+      Math.abs(retarget.after - retarget.before) < 1 &&
+      retarget.after > 100,
+    JSON.stringify(retarget),
+  );
   await waitFor(`document.querySelector('.shell').dataset.view === 'fun'`);
   await sleepMs(220);
   const reversal = await evaluate(`(() => {
-    const workspace = document.querySelector('.workspace');
+    const workspace = document.querySelector('.module-wipe i');
     const animation = workspace.getAnimations()[0];
     const before = animation.currentTime;
     document.querySelector('[data-nav="audio"]').click();
     const after = workspace.getAnimations()[0];
     return { sameAnimation: animation === after, before, after: after.currentTime };
   })()`);
-  check('navigation during opening reverses from its current position', reversal.sameAnimation && Math.abs(reversal.after - reversal.before) < 1, JSON.stringify(reversal));
+  check(
+    "navigation during reveal keeps the current sweep running",
+    reversal.sameAnimation && Math.abs(reversal.after - reversal.before) < 1,
+    JSON.stringify(reversal),
+  );
   await evaluate(`document.querySelector('[data-nav="fun"]').click()`);
-  await waitFor(`document.querySelector('.shell').dataset.view === 'fun' && !document.querySelector('.workspace').inert`);
+  await waitFor(
+    `document.querySelector('.shell').dataset.view === 'fun' && !document.querySelector('.workspace').inert`,
+  );
   await sleepMs(1800);
   check(
-    'rapid navigation settles on the latest destination',
+    "rapid navigation settles on the latest destination",
     await evaluate(
       `document.querySelector('.nav.active').dataset.nav === 'fun' && !document.querySelector('.workspace').inert`,
     ),
   );
   check(
-    'navigation does not retrigger the one-shot flicker sound',
+    "navigation does not retrigger the one-shot flicker sound",
     await evaluate(`
     window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1.364127) < .002).length === 1
   `),
   );
-  console.log('· rotary motion and tactile feedback');
-  const knob = await boxOf('#rotary-knob');
-  const cx = knob.x + knob.w / 2, cy = knob.y + knob.h / 2;
-  const roundsBefore = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length`);
-  const rotaryBefore = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length`);
-  const scrollBeforeRotary = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx + 55, y: cy, button: 'left', buttons: 1, clickCount: 1 });
+  console.log("· rotary motion and tactile feedback");
+  const knob = await boxOf("#rotary-knob");
+  const cx = knob.x + knob.w / 2,
+    cy = knob.y + knob.h / 2;
+  const roundsBefore = await evaluate(
+    `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length`,
+  );
+  const rotaryBefore = await evaluate(
+    `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length`,
+  );
+  const scrollBeforeRotary = await evaluate(
+    `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`,
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: cx + 55,
+    y: cy,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  });
   for (let i = 1; i <= 48; i++) {
-    const angle = i / 48 * Math.PI * 2;
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx + Math.cos(angle) * 55, y: cy + Math.sin(angle) * 55, button: 'left', buttons: 1 });
+    const angle = (i / 48) * Math.PI * 2;
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: cx + Math.cos(angle) * 55,
+      y: cy + Math.sin(angle) * 55,
+      button: "left",
+      buttons: 1,
+    });
     await sleepMs(20);
   }
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx + 55, y: cy, button: 'left', buttons: 0 });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: cx + 55,
+    y: cy,
+    button: "left",
+    buttons: 0,
+  });
   await sleepMs(350);
-  check('one full rotary turn triggers one round accent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length === ${roundsBefore + 1}`));
-  check('rotary emits actual canvas particles', await evaluate(`(() => { const c = document.querySelector('#rotary-particles'); const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; return d.some((v,i) => i % 4 === 3 && v > 0); })()`));
-  check('rotary uses the original clack once per coarse detent', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length === ${scrollBeforeRotary + 12} && window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length === ${rotaryBefore}`));
-  check('rotary displays twelve detents', await evaluate(`document.querySelectorAll('.rotary-ticks i').length === 12`));
-  await shot('08-playground');
+  check(
+    "one full rotary turn triggers one round accent",
+    await evaluate(
+      `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1) < .002).length === ${roundsBefore + 1}`,
+    ),
+  );
+  check(
+    "rotary emits actual canvas particles",
+    await evaluate(
+      `(() => { const c = document.querySelector('#rotary-particles'); const d = c.getContext('2d').getImageData(0,0,c.width,c.height).data; return d.some((v,i) => i % 4 === 3 && v > 0); })()`,
+    ),
+  );
+  check(
+    "rotary uses the original clack once per coarse detent",
+    await evaluate(
+      `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length === ${scrollBeforeRotary + 12} && window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length === ${rotaryBefore}`,
+    ),
+  );
+  check(
+    "rotary displays twelve detents",
+    await evaluate(
+      `document.querySelectorAll('.rotary-ticks i').length === 12`,
+    ),
+  );
+  await shot("08-playground");
   await evaluate(`document.querySelector('#rotary-knob').focus()`);
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 });
-  const rotaryAtStart = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "ArrowRight",
+    code: "ArrowRight",
+    windowsVirtualKeyCode: 39,
+  });
+  const rotaryAtStart = await evaluate(
+    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`,
+  );
   await sleepMs(70);
-  const rotaryDuring = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
-  check('rotary eases through intermediate angles', rotaryDuring > rotaryAtStart && rotaryDuring < 30);
+  const rotaryDuring = await evaluate(
+    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`,
+  );
+  check(
+    "rotary eases through intermediate angles",
+    rotaryDuring > rotaryAtStart && rotaryDuring < 30,
+  );
   await sleepMs(550);
-  check('rotary supports keyboard detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`));
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: cx + 55, y: cy, button: 'left', buttons: 1, clickCount: 1 });
+  check(
+    "rotary supports keyboard detents",
+    await evaluate(
+      `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`,
+    ),
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: cx + 55,
+    y: cy,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  });
   const dragRotary = async (degrees) => {
-    const radians = degrees * Math.PI / 180;
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx + Math.cos(radians) * 55, y: cy + Math.sin(radians) * 55, button: 'left', buttons: 1 });
+    const radians = (degrees * Math.PI) / 180;
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x: cx + Math.cos(radians) * 55,
+      y: cy + Math.sin(radians) * 55,
+      button: "left",
+      buttons: 1,
+    });
     await sleepMs(450);
   };
   await dragRotary(17);
-  check('rotary holds its notch until the resistance threshold', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`));
+  check(
+    "rotary holds its notch until the resistance threshold",
+    await evaluate(
+      `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 30`,
+    ),
+  );
   await dragRotary(20);
-  check('rotary snaps into the next notch after the threshold', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`));
+  check(
+    "rotary snaps into the next notch after the threshold",
+    await evaluate(
+      `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`,
+    ),
+    `angle=${await evaluate(`document.querySelector('#rotary-knob').getAttribute('aria-valuenow')`)}`,
+  );
   await dragRotary(14);
-  check('small reversals do not chatter between rotary detents', await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`));
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cx + 55, y: cy, button: 'left', buttons: 0 });
-  console.log('· directional fader and projection');
-  check('fader occupies its own module below the rotary', await evaluate(`document.querySelector('.fader-module').getBoundingClientRect().top > document.querySelector('.rotary-stage').getBoundingClientRect().bottom + 20`));
-  const fader = await boxOf('.fader-travel');
+  check(
+    "small reversals do not chatter between rotary detents",
+    await evaluate(
+      `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`,
+    ),
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: cx + 55,
+    y: cy,
+    button: "left",
+    buttons: 0,
+  });
+  console.log("· direct fader and SoundTouch stretching");
+  check(
+    "fader occupies its own module below the rotary",
+    await evaluate(
+      `document.querySelector('.fader-module').getBoundingClientRect().top > document.querySelector('.rotary-stage').getBoundingClientRect().bottom + 20`,
+    ),
+  );
+  const fader = await boxOf(".fader-travel");
   const setFader = async (value) => {
-    const x = fader.x + fader.w * value, y = fader.y + 80;
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
-    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0 });
+    const x = fader.x + fader.w * value,
+      y = fader.y + 80;
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mousePressed",
+      x,
+      y,
+      button: "left",
+      buttons: 1,
+      clickCount: 1,
+    });
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseReleased",
+      x,
+      y,
+      button: "left",
+      buttons: 0,
+    });
   };
-  const faderState = () => evaluate(`(() => { const s = document.querySelector('#neuraa-slider'); return { target: parseFloat(s.style.getPropertyValue('--target'))/100, follower: parseFloat(s.style.getPropertyValue('--follower'))/100, time: performance.now() }; })()`);
-  await setFader(.95);
-  await sleepMs(90);
-  const faderStart = await faderState();
-  check('fader target moves ahead while its projection follows', faderStart.target > .9 && faderStart.follower > .5 && faderStart.follower < .7);
-  const rightSound = await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).at(-1)`);
-  check('fader audio starts at its projection position at original pitch', rightSound && rightSound.offset > 1.3 && rightSound.offset < 1.55 && Math.abs(rightSound.rate - 1) < .001);
-  await sleepMs(200);
-  const faderMiddle = await faderState();
-  await sleepMs(200);
-  const faderEnd = await faderState();
-  const speedA = (faderMiddle.follower-faderStart.follower)*1000/(faderMiddle.time-faderStart.time);
-  const speedB = (faderEnd.follower-faderMiddle.follower)*1000/(faderEnd.time-faderMiddle.time);
-  check('projection maintains constant speed instead of easing toward its target', Math.abs(speedA-.375)<.06 && Math.abs(speedB-.375)<.06, `${speedA.toFixed(3)} / ${speedB.toFixed(3)}`);
-  await shot('16-fader-desktop');
-  const beforeReverse = await faderState();
-  await setFader(.05);
-  await sleepMs(70);
-  const reverseSound = await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).at(-1)`);
-  check('fader reverses with the mirrored source offset', reverseSound && Math.abs(reverseSound.offset - (1-beforeReverse.follower)*8/3)<.12);
-  await waitFor(`Math.abs(parseFloat(document.querySelector('#neuraa-slider').style.getPropertyValue('--follower'))-5)<.1`);
-  check('fader audio is stopped when the projection reaches its target', await evaluate(`window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).every(s => s.stoppedAt || s.endedAt)`));
-  await evaluate(`window.scrollTo({top:0,behavior:'instant'}); document.activeElement.blur()`);
-  const scrollClacks = await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length`);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 72 });
-  await sleepMs(450);
-  check('wheel scrolling lands on a mechanical detent', await evaluate(`scrollY > 0 && scrollY % 56 === 0`));
-  check('scroll detents produce their own clack feedback', await evaluate(`window.__qa.sfxStarts.filter(source => Math.abs(source.duration - .15932) < .002).length > ${scrollClacks}`));
+  await setFader(0.2);
+  await sleepMs(600);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: fader.x + fader.w * 0.2,
+    y: fader.y + 80,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  });
+  const moveFader = async (from, to, steps, delay) => {
+    for (let i = 1; i <= steps; i++) {
+      await sleepMs(delay);
+      await cdp.send("Input.dispatchMouseEvent", {
+        type: "mouseMoved",
+        x: fader.x + fader.w * (from + ((to - from) * i) / steps),
+        y: fader.y + 80,
+        button: "left",
+        buttons: 1,
+      });
+    }
+  };
+  await moveFader(0.2, 0.5, 30, 65);
+  const slowRate = await evaluate(
+    `window.__qa.sources.filter(s => s.__processor).at(-1)?.playbackRate.value`,
+  );
+  check(
+    "fader follows the handle directly with no trailing projection",
+    await evaluate(
+      `Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow')) === 50 && !document.querySelector('.fader-projection')`,
+    ),
+  );
+  check(
+    "SoundTouch produces nonzero audio on the rendering thread",
+    await evaluate(`window.__qa.stretchPeak > .001`),
+  );
+  await moveFader(0.5, 0.85, 12, 16);
+  const fastRate = await evaluate(
+    `window.__qa.sources.filter(s => s.__processor).at(-1)?.playbackRate.value`,
+  );
+  check(
+    "drag velocity changes tempo with pitch held at unity",
+    fastRate > slowRate * 2 &&
+      (await evaluate(
+        `window.__qa.sources.filter(s => s.__processor).every(s => s.__processor.pitch.value === 1)`,
+      )),
+    `${slowRate} / ${fastRate}`,
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: fader.x + fader.w * 0.75,
+    y: fader.y + 80,
+    button: "left",
+    buttons: 1,
+  });
+  const reverseSound = await evaluate(
+    `window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).at(-1)`,
+  );
+  check(
+    "fader reversals seek to the mirrored handle position",
+    reverseSound && Math.abs(reverseSound.offset - (0.25 * 8) / 3) < 0.015,
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: fader.x + fader.w * 0.75,
+    y: fader.y + 80,
+    button: "left",
+    buttons: 0,
+  });
+  check(
+    "fader releases through a half-second stop buffer",
+    await evaluate(
+      `(() => { const s=window.__qa.sfxStarts.filter(s=>Math.abs(s.duration-8/3)<.002).at(-1); return s.stopDelay>=.5 && s.stopDelay<.53; })()`,
+    ),
+  );
+  await sleepMs(700);
+  check(
+    "fader voices finish after release",
+    await evaluate(
+      `window.__qa.sfxStarts.filter(s => Math.abs(s.duration - 8/3) < .002).every(s => s.endedAt)`,
+    ),
+  );
+  await shot("16-fader-desktop");
+  await evaluate(
+    `window.scrollTo({top:0,behavior:'instant'}); document.activeElement.blur()`,
+  );
+  const scrollClacks = await evaluate(
+    `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length`,
+  );
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x: 40,
+    y: 300,
+    deltaX: 0,
+    deltaY: 72,
+  });
+  await waitFor(`scrollY > 0 && scrollY % 56 === 0`, 4000).catch(() => {});
+  check(
+    "wheel scrolling lands on a mechanical detent",
+    await evaluate(`scrollY > 0 && scrollY % 56 === 0`),
+    JSON.stringify(
+      await evaluate(`({y:scrollY,events:window.__qa.gestures.slice(-20)})`),
+    ),
+  );
+  check(
+    "scroll detents produce lowerclack feedback",
+    await evaluate(
+      `window.__qa.sfxStarts.filter(source => Math.abs(source.duration - 1/6) < .002).length > ${scrollClacks}`,
+    ),
+  );
   await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
   await sleepMs(100);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 60 });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x: 40,
+    y: 300,
+    deltaX: 0,
+    deltaY: 60,
+  });
   await sleepMs(100);
   const slowScroll = await evaluate(`scrollY`);
-  await sleepMs(350);
+  await waitFor(`scrollY === 56`, 4000);
   await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
   await sleepMs(100);
-  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: 40, y: 300, deltaX: 0, deltaY: 480 });
-  await sleepMs(100);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseWheel",
+    x: 40,
+    y: 300,
+    deltaX: 0,
+    deltaY: 480,
+  });
+  await waitFor(`scrollY > 300`, 4000).catch(() => {});
   const fastScroll = await evaluate(`scrollY`);
-  check('scroll velocity responds to wheel input without a fixed detent speed', fastScroll > slowScroll * 4 && fastScroll > 300, `${slowScroll}px / ${fastScroll}px`);
-  await sleepMs(400);
-  check('fast scrolling still settles on a detent', await evaluate(`scrollY % 56 === 0`));
-  check('screen noise is nonblank', await evaluate(`document.querySelector('#screen-noise').getContext('2d').getImageData(0,0,1,1).data[3] === 255`));
-  await click('#system-open');
-  await sleepMs(1000);
-  await click('[data-language="en"]');
   check(
-    'language switch translates titles and controls',
+    "scroll velocity responds to wheel input without a fixed detent speed",
+    fastScroll > slowScroll * 4 && fastScroll > 300,
+    `${slowScroll}px / ${fastScroll}px`,
+  );
+  await sleepMs(400);
+  check(
+    "fast scrolling still settles on a detent",
+    await evaluate(`scrollY % 56 === 0`),
+  );
+  check(
+    "screen noise is nonblank",
+    await evaluate(
+      `document.querySelector('#screen-noise').getContext('2d').getImageData(0,0,1,1).data[3] === 255`,
+    ),
+  );
+  await click("#system-open");
+  await sleepMs(1000);
+  const uiSizes = () =>
+    evaluate(
+      `Object.fromEntries([...document.querySelectorAll('.nav,.header-tools button,.hero-sub,#explore,.playground-heading,.toy-heading,.transport,#system-dialog,.system-switch-row button')].map((el,i)=>{const r=el.getBoundingClientRect();return [el.id||'element'+i,[r.x,r.y,r.width,r.height]]}))`,
+    );
+  const chineseSizes = await uiSizes();
+  await click('[data-language="en"]');
+  const englishSizes = await uiSizes();
+  check(
+    "language switching preserves control positions and dimensions",
+    Object.keys(chineseSizes).every((key) =>
+      chineseSizes[key].every(
+        (v, i) => Math.abs(v - englishSizes[key][i]) < 0.1,
+      ),
+    ),
+    JSON.stringify({ chineseSizes, englishSizes }),
+  );
+  check(
+    "settings uses a local clear-to-frosted backdrop",
+    await evaluate(
+      `getComputedStyle(document.querySelector('#system-dialog'),'::backdrop').backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(document.querySelector('#system-dialog'),'::backdrop').maskImage.includes('gradient')`,
+    ),
+  );
+  check(
+    "language switching uses ASCII character traversal",
+    await evaluate(
+      `document.querySelectorAll('.ascii-scramble[data-ascii]').length > 5`,
+    ),
+  );
+  const originalTheme = await evaluate(
+    `getComputedStyle(document.querySelector('.playground')).backgroundColor`,
+  );
+  await click('#system-dialog [data-treatment="mono"]');
+  await sleepMs(750);
+  check(
+    "themes recolor content and banner together",
+    await evaluate(
+      `getComputedStyle(document.querySelector('.playground')).backgroundColor !== ${JSON.stringify(originalTheme)} && document.querySelector('.hero-art .banner-strata') && getComputedStyle(document.querySelector('.hero-art')).backgroundImage === 'none'`,
+    ),
+  );
+  await click('#system-dialog [data-treatment="duotone"]');
+  check(
+    "language switch translates titles and controls",
     await evaluate(
       `document.documentElement.lang === 'en' && document.querySelector('#search').placeholder === 'Search compositions…' && !/[\\u4e00-\\u9fff]/.test(document.querySelector('#current-title').textContent)`,
     ),
   );
-  await click('#softness');
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyDown',
-    key: 'Home',
-    code: 'Home',
+  await click("#softness");
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    key: "Home",
+    code: "Home",
     windowsVirtualKeyCode: 36,
   });
-  await cdp.send('Input.dispatchKeyEvent', {
-    type: 'keyUp',
-    key: 'Home',
-    code: 'Home',
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "Home",
+    code: "Home",
     windowsVirtualKeyCode: 36,
   });
   check(
-    'screen diffusion can be removed',
-    await evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--screen-softness').trim() === '0px'`),
+    "screen diffusion can be removed",
+    await evaluate(
+      `getComputedStyle(document.documentElement).getPropertyValue('--screen-softness').trim() === '0px'`,
+    ),
   );
-  await shot('09-settings-en');
-  await click('#motion-toggle');
-  await click('#system-close');
+  await shot("09-settings-en");
+  await click("#motion-toggle");
+  await click("#system-close");
   await waitFor(`!document.querySelector('#system-dialog').open`);
   await click('[data-nav="video"]');
   check(
-    'reduced motion switches views immediately',
+    "reduced motion switches views immediately",
     await evaluate(
       `document.querySelector('.shell').dataset.view === 'video' && !document.querySelector('.workspace').classList.contains('changing')`,
     ),
   );
   check(
-    'motion switch disables continuous motion and scanning',
+    "motion switch disables continuous motion and scanning",
     await evaluate(`
     getComputedStyle(document.querySelector('#screen-noise')).display === 'none' &&
     getComputedStyle(document.querySelector('.signal-scan')).display === 'none'
   `),
   );
-  await shot('10-video-en');
+  await shot("10-video-en");
   await click('[data-nav="overview"]');
 
-  console.log('· mobile layout');
-  await cdp.send('Emulation.setDeviceMetricsOverride', {
+  await click("#dock-toggle");
+  await sleepMs(500);
+  check(
+    "player collapses into a compact dock with a working play control",
+    await evaluate(
+      `document.querySelector('.transport').classList.contains('collapsed') && document.querySelector('#dock-toggle').getAttribute('aria-expanded') === 'false' && document.querySelector('.transport').getBoundingClientRect().height === 60 && document.querySelector('#dock-play').getBoundingClientRect().width > 0`,
+    ),
+  );
+  await click("#dock-play");
+  await waitFor(`!document.querySelector('#audio').paused`);
+  await click("#dock-play");
+  await waitFor(`document.querySelector('#audio').paused`);
+  await shot("18-collapsed-dock");
+  await click("#dock-toggle");
+  check(
+    "player expands back to its full controls",
+    await evaluate(
+      `document.querySelector('#dock-toggle').getAttribute('aria-expanded') === 'true' && document.querySelector('#audio-seek').getBoundingClientRect().width > 0`,
+    ),
+  );
+
+  console.log("· mobile layout");
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 390,
     height: 844,
     deviceScaleFactor: 2,
@@ -687,127 +1166,215 @@ async function main() {
   });
   await sleepMs(600);
   check(
-    'no horizontal overflow at 390px',
+    "no horizontal overflow at 390px",
     await evaluate(`document.documentElement.scrollWidth <= 391`),
     `scrollWidth=${await evaluate(`document.documentElement.scrollWidth`)}`,
   );
-  await scrollTo('#audio-play');
+  await scrollTo("#audio-play");
   await sleepMs(300);
   check(
-    'transport controls stay on screen on mobile',
+    "transport controls stay on screen on mobile",
     await evaluate(
       `(() => { const r = document.querySelector('#audio-play').getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1; })()`,
     ),
   );
-  await shot('05-mobile');
-  await cdp.send('Emulation.setDeviceMetricsOverride', {
+  await shot("05-mobile");
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
     width: 320,
     height: 740,
     deviceScaleFactor: 1,
     mobile: true,
   });
-  await scrollTo('.masthead');
+  await scrollTo(".masthead");
   await sleepMs(300);
-  check('English layout fits a 320px screen', await evaluate(`document.documentElement.scrollWidth <= 321`));
-  check('mobile ruler is visible and has readable tick width', await evaluate(`(() => { const r = document.querySelector('.scroll-ruler').getBoundingClientRect(); return r.width >= 10 && r.right <= innerWidth && r.top > 0 && r.bottom < innerHeight && getComputedStyle(document.querySelector('.scroll-ruler')).display !== 'none'; })()`));
-  await shot('11-mobile-320-en');
-  for (const view of ['audio', 'video', 'fun']) {
+  check(
+    "English layout fits a 320px screen",
+    await evaluate(`document.documentElement.scrollWidth <= 321`),
+  );
+  check(
+    "mobile ruler is visible and has readable tick width",
+    await evaluate(
+      `(() => { const r = document.querySelector('.scroll-ruler').getBoundingClientRect(); return r.width >= 10 && r.right <= innerWidth && r.top > 0 && r.bottom < innerHeight && getComputedStyle(document.querySelector('.scroll-ruler')).display !== 'none'; })()`,
+    ),
+  );
+  await shot("11-mobile-320-en");
+  for (const view of ["audio", "video", "fun"]) {
     await click(`[data-nav="${view}"]`);
     await sleepMs(150);
-    check(`${view} fits a 320px screen`, await evaluate(`document.documentElement.scrollWidth <= 321`));
+    check(
+      `${view} fits a 320px screen`,
+      await evaluate(`document.documentElement.scrollWidth <= 321`),
+    );
   }
-  await scrollTo('#rotary-knob');
-  await shot('15-mobile-rotary');
-  const touchKnob = await boxOf('#rotary-knob');
-  const tx = touchKnob.x + touchKnob.w/2, ty = touchKnob.y + touchKnob.h/2;
-  const beforeTouch = await evaluate(`Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`);
+  await scrollTo("#rotary-knob");
+  await shot("15-mobile-rotary");
+  const touchKnob = await boxOf("#rotary-knob");
+  const tx = touchKnob.x + touchKnob.w / 2,
+    ty = touchKnob.y + touchKnob.h / 2;
+  const beforeTouch = await evaluate(
+    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`,
+  );
   const scrollBeforeTouch = await evaluate(`scrollY`);
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:tx+45,y:ty}]});
-  for (let i=1;i<=8;i++) {
-    const a = i/8*Math.PI/2;
-    await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:tx+45*Math.cos(a),y:ty+45*Math.sin(a)}]});
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: tx + 45, y: ty }],
+  });
+  for (let i = 1; i <= 8; i++) {
+    const a = ((i / 8) * Math.PI) / 2;
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: tx + 45 * Math.cos(a), y: ty + 45 * Math.sin(a) }],
+    });
     await sleepMs(25);
   }
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
   await sleepMs(100);
-  check('touch rotates the dial without scrolling the page', await evaluate(`
+  check(
+    "touch rotates the dial without scrolling the page",
+    await evaluate(`
     Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === (${beforeTouch}+90)%360 && Math.abs(scrollY-${scrollBeforeTouch}) < 2
-  `));
-  const mobileFader = await boxOf('.fader-travel');
+  `),
+  );
+  const mobileFader = await boxOf(".fader-travel");
   const faderScrollY = await evaluate(`scrollY`);
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:mobileFader.x+mobileFader.w*.1,y:mobileFader.y+80}]});
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:mobileFader.x+mobileFader.w*.9,y:mobileFader.y+80}]});
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [
+      { x: mobileFader.x + mobileFader.w * 0.1, y: mobileFader.y + 80 },
+    ],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: mobileFader.x + mobileFader.w * 0.9, y: mobileFader.y + 80 },
+    ],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
   await sleepMs(120);
-  check('touch controls the fader without scrolling and leaves a trailing projection', await evaluate(`Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow')) >= 89 && parseFloat(document.querySelector('#neuraa-slider').style.getPropertyValue('--follower')) < 70 && Math.abs(scrollY-${faderScrollY}) < 2`));
-  await shot('17-fader-mobile');
+  check(
+    "touch controls the audio fader directly without scrolling",
+    await evaluate(
+      `Number(document.querySelector('#neuraa-slider').getAttribute('aria-valuenow')) >= 89 && !document.querySelector('.fader-projection') && Math.abs(scrollY-${faderScrollY}) < 2`,
+    ),
+  );
+  await shot("17-fader-mobile");
   await evaluate(`window.scrollTo({top:0,behavior:'instant'})`);
   await sleepMs(150);
-  const rulerBefore = await evaluate(`document.querySelector('.scroll-ruler i').style.top`);
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:150,y:440}]});
-  for (let i=1; i<=8; i++) {
-    await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:150,y:440-i*27}]});
+  const rulerBefore = await evaluate(
+    `document.querySelector('.scroll-ruler i').style.top`,
+  );
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: 150, y: 440 }],
+  });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: 150, y: 440 - i * 27 }],
+    });
     await sleepMs(30);
   }
-  await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
-  await sleepMs(1400);
-  check('mobile swipe retains native movement then snaps to a detent', await evaluate(`scrollY > 0 && scrollY % 56 === 0`));
-  check('mobile scroll updates the visible ruler', await evaluate(`document.querySelector('.scroll-ruler i').style.top !== ${JSON.stringify(rulerBefore)}`));
-
-  console.log('· direct English entry and OS reduced motion');
-  await cdp.send('Emulation.setEmulatedMedia', {
-    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
   });
-  await cdp.send('Page.reload');
+  await waitFor(`scrollY > 0 && scrollY % 56 === 0`, 4000).catch(() => {});
+  check(
+    "mobile swipe retains native movement then snaps to a detent",
+    await evaluate(`scrollY > 0 && scrollY % 56 === 0`),
+    JSON.stringify(
+      await evaluate(`({y:scrollY,events:window.__qa.gestures.slice(-20)})`),
+    ),
+  );
+  check(
+    "mobile scroll updates the visible ruler",
+    await evaluate(
+      `document.querySelector('.scroll-ruler i').style.top !== ${JSON.stringify(rulerBefore)}`,
+    ),
+  );
+
+  console.log("· direct English entry and OS reduced motion");
+  await cdp.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
+  await cdp.send("Page.reload");
   await waitFor(
     `document.querySelector('#enter-en') && !document.querySelector('#enter-en').disabled && document.querySelectorAll('.track').length === 16`,
   );
-  await shot('12-mobile-entry');
-  await click('#enter-en');
+  await shot("12-mobile-entry");
+  await click("#enter-en");
   await waitFor(`document.querySelector('#boot').hidden === true`);
   check(
-    'English entry opens the English archive',
+    "English entry opens the English archive",
     await evaluate(
       `document.documentElement.lang === 'en' && document.querySelector('#current-title').textContent === 'Orchestral Composition'`,
     ),
   );
   await click('[data-nav="fun"]');
   check(
-    'OS reduced motion bypasses long transitions',
+    "OS reduced motion bypasses long transitions",
     await evaluate(
       `document.querySelector('.shell').dataset.view === 'fun' && !document.querySelector('.workspace').inert`,
     ),
   );
-  await shot('13-mobile-profile-en');
+  await shot("13-mobile-profile-en");
 
-  await cdp.send('Emulation.clearDeviceMetricsOverride');
+  await cdp.send("Emulation.clearDeviceMetricsOverride");
   await sleepMs(300);
 
-  check('no uncaught page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
-  check('no failed network requests', badResponses.length === 0, badResponses.slice(0, 3).join(' | '));
+  check(
+    "no uncaught page errors",
+    errors.length === 0,
+    errors.slice(0, 3).join(" | "),
+  );
+  check(
+    "no failed network requests",
+    badResponses.length === 0,
+    badResponses.slice(0, 3).join(" | "),
+  );
 
-  cdp.close();
-  chrome.kill('SIGKILL');
-  if (vite) vite.kill('SIGKILL');
-  rmSync(profile, { recursive: true, force: true });
+  cleanup();
 
   const failed = results.filter((r) => !r.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+  console.log(
+    `\n${results.length - failed.length}/${results.length} checks passed`,
+  );
   if (failed.length) {
-    console.log('failures:');
-    for (const failure of failed) console.log(` - ${failure.name}${failure.detail ? ` (${failure.detail})` : ''}`);
+    console.log("failures:");
+    for (const failure of failed)
+      console.log(
+        ` - ${failure.name}${failure.detail ? ` (${failure.detail})` : ""}`,
+      );
     process.exitCode = 1;
   }
 }
 
 const qaHook = `
 (() => {
-  const stats = window.__qa = { sfxStarts: [], errors: [] };
+  const stats = window.__qa = { sfxStarts: [], sources: [], stretchPeak: 0, errors: [], gestures: [] };
+  for (const name of ['pointerdown','pointerup','pointercancel','wheel','scroll']) {
+    document.addEventListener(name,event=>{stats.gestures.push([name, Math.round(performance.now()),event.target.id||event.target.tagName,scrollY]);if(stats.gestures.length>100)stats.gestures.shift();},true);
+  }
+  const connect = AudioNode.prototype.connect;
+  AudioNode.prototype.connect = function(destination, ...args) {
+    if (this instanceof AudioBufferSourceNode && destination.parameters?.has('pitch')) {
+      this.__processor = destination;
+      destination.addEventListener('metrics', event => { stats.stretchPeak = Math.max(stats.stretchPeak, event.detail.outputPeak); });
+    }
+    return connect.call(this, destination, ...args);
+  };
   const Context = window.AudioContext || window.webkitAudioContext;
   if (Context) {
     const create = Context.prototype.createBufferSource;
     Context.prototype.createBufferSource = function patched() {
       const source = create.call(this);
+      stats.sources.push(source);
       const start = source.start.bind(source);
       const stop = source.stop.bind(source);
       let record;
@@ -817,7 +1384,7 @@ const qaHook = `
         return start(...args);
       };
       source.stop = (...args) => {
-        if (record) record.stoppedAt = performance.now();
+        if (record) { record.stoppedAt = performance.now(); record.stopDelay = args[0] - this.currentTime; }
         return stop(...args);
       };
       source.addEventListener('ended', () => { if (record) record.endedAt = performance.now(); });
@@ -831,9 +1398,13 @@ const qaHook = `
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: ROOT, stdio: 'ignore' });
-    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`${command} ${args.join(' ')} exited with ${code}`))));
-    child.on('error', reject);
+    const child = spawn(command, args, { cwd: ROOT, stdio: "ignore" });
+    child.on("exit", (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`${command} ${args.join(" ")} exited with ${code}`)),
+    );
+    child.on("error", reject);
   });
 }
 
@@ -855,19 +1426,22 @@ async function waitForTarget(port, timeout) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
     try {
-      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-      const page = list.find((t) => t.type === 'page');
+      const list = await (
+        await fetch(`http://127.0.0.1:${port}/json/list`)
+      ).json();
+      const page = list.find((t) => t.type === "page");
       if (page) return page;
     } catch {
       /* not up yet */
     }
     await sleepMs(250);
   }
-  throw new Error('Chrome DevTools endpoint did not start');
+  throw new Error("Chrome DevTools endpoint did not start");
 }
 
-const SHOTS = process.env.QA_SHOTS !== '0';
+const SHOTS = process.env.QA_SHOTS !== "0";
 main().catch((error) => {
+  cleanup();
   console.error(`QA crashed: ${error.message}`);
   process.exitCode = 1;
 });

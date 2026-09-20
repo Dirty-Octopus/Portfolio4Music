@@ -1,73 +1,50 @@
 import { clamp } from "./player.js";
-
-// Both source sounds span one full traverse at their original playback rate.
-const speed = 1 / (8 / 3);
+import { Scrubber } from "./scrubber.js";
+import { t } from "./i18n.js";
 
 export function initFader(engine) {
   const control = document.querySelector("#neuraa-slider");
   const travel = control.querySelector(".fader-travel");
-  let target = 0.5,
-    position = 0.5,
+  const scrubber = new Scrubber(engine);
+  engine.scrubber = scrubber;
+  let position = 0.5,
     pointer = null,
-    frame = 0,
-    previousTime = null;
+    lastTime = 0,
+    idle = 0;
   const visible = () =>
     !document.hidden && document.querySelector(".shell").dataset.view === "fun";
-  const time = () => engine.context?.currentTime ?? performance.now() / 1000;
   function paint() {
-    control.style.setProperty("--target", `${target * 100}%`);
-    control.style.setProperty("--follower", `${position * 100}%`);
-    control.style.setProperty(
-      "--span-start",
-      `${Math.min(target, position) * 100}%`,
-    );
-    control.style.setProperty(
-      "--span-width",
-      `${Math.abs(target - position) * 100}%`,
-    );
-    control.setAttribute("aria-valuenow", String(Math.round(target * 100)));
-    control.classList.toggle("following", Math.abs(target - position) > 0.001);
+    control.style.setProperty("--target", `${position * 100}%`);
+    control.setAttribute("aria-valuenow", String(Math.round(position * 100)));
   }
-  function render() {
-    frame = 0;
-    if (!visible()) {
-      stop();
-      return;
-    }
-    const now = time();
-    const dt = previousTime === null ? 0 : Math.max(0, now - previousTime);
-    previousTime = now;
-    const gap = target - position;
-    position += Math.sign(gap) * Math.min(Math.abs(gap), speed * dt);
-    const width = Math.max(1, travel.getBoundingClientRect().width);
-    // Leave a silent margin before the two 40px handles overlap.
-    const quietDistance = Math.min(0.25, 58 / width);
-    engine.updateSliderSound(
-      position,
-      target,
-      speed,
-      quietDistance,
-      quietDistance + 72 / width,
-    );
+  function move(next, now = performance.now()) {
+    next = clamp(next, 0, 1);
+    const velocity =
+      (next - position) / Math.max(0.008, (now - lastTime) / 1000);
+    position = next;
+    lastTime = now;
+    scrubber.move(position, velocity);
+    clearTimeout(idle);
+    idle = setTimeout(() => scrubber.release(), 85);
     paint();
-    if (position !== target) frame = requestAnimationFrame(render);
-    else previousTime = null;
-  }
-  function setTarget(value) {
-    target = clamp(value, 0, 1);
-    paint();
-    if (!frame) {
-      previousTime = time();
-      frame = requestAnimationFrame(render);
-    }
   }
   function point(event) {
     const rect = travel.getBoundingClientRect();
-    setTarget((event.clientX - rect.left) / rect.width);
+    move((event.clientX - rect.left) / rect.width);
   }
-  function prepare() {
-    engine.decodeSfx("neuraasliderto");
-    engine.decodeSfx("neuraasliderfrom");
+  async function prepare(report = false) {
+    try {
+      await engine.unlock();
+      await scrubber.prepare();
+    } catch {
+      if (report)
+        engine.onError(
+          t(
+            "滑块音频加载失败，请重试。",
+            "Fader audio could not load. Please try again.",
+          ),
+        );
+    }
   }
   control.addEventListener("pointerdown", (event) => {
     if (
@@ -76,9 +53,9 @@ export function initFader(engine) {
     )
       return;
     event.preventDefault();
-    engine.unlock();
-    prepare();
+    prepare(true);
     pointer = event.pointerId;
+    lastTime = performance.now() - 30;
     control.setPointerCapture(pointer);
     control.focus({ preventScroll: true });
     control.classList.add("dragging");
@@ -88,43 +65,41 @@ export function initFader(engine) {
     if (event.pointerId === pointer) point(event);
   });
   function release() {
-    if (pointer !== null && control.hasPointerCapture(pointer))
-      control.releasePointerCapture(pointer);
+    const captured = pointer;
     pointer = null;
+    if (captured !== null && control.hasPointerCapture(captured))
+      control.releasePointerCapture(captured);
     control.classList.remove("dragging");
+    clearTimeout(idle);
+    scrubber.release();
   }
   control.addEventListener("pointerup", release);
   control.addEventListener("pointercancel", release);
-  control.addEventListener("lostpointercapture", release);
+  control.addEventListener("lostpointercapture", () => {
+    if (pointer !== null) release();
+  });
   control.addEventListener("keydown", (event) => {
     const destinations = {
-      ArrowRight: target + 0.05,
-      ArrowLeft: target - 0.05,
-      ArrowUp: target + 0.05,
-      ArrowDown: target - 0.05,
-      PageUp: target + 0.2,
-      PageDown: target - 0.2,
+      ArrowRight: position + 0.05,
+      ArrowLeft: position - 0.05,
+      ArrowUp: position + 0.05,
+      ArrowDown: position - 0.05,
+      PageUp: position + 0.2,
+      PageDown: position - 0.2,
       Home: 0,
       End: 1,
     };
     if (!(event.key in destinations)) return;
     event.preventDefault();
-    engine.unlock();
-    prepare();
-    setTarget(destinations[event.key]);
+    prepare(true);
+    lastTime = performance.now() - 120;
+    move(destinations[event.key]);
   });
-  function stop() {
-    cancelAnimationFrame(frame);
-    frame = 0;
-    previousTime = null;
-    release();
-    engine.stopSliderSound();
-  }
   function visibilityChanged() {
-    if (!visible()) stop();
+    if (visible()) prepare();
     else {
-      prepare();
-      if (position !== target) setTarget(target);
+      release();
+      scrubber.stop();
     }
   }
   document.addEventListener("modulechange", visibilityChanged);

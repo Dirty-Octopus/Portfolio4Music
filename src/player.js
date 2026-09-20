@@ -235,7 +235,13 @@ export class PlaybackEngine {
     if (!this.sfxEnabled || !this.context) return;
     const cue = name === "bootupcrt" || name === "flicker";
     if (cue && this.playedCues.has(name)) return;
-    const lane = cue ? "cue" : name === "round" ? "accent" : "sfx";
+    const lane = cue
+      ? "cue"
+      : name === "round"
+        ? "accent"
+        : name === "suprise"
+          ? "surprise"
+          : "sfx";
     const serialKey = `${lane}Serial`;
     const voiceKey = `${lane}Voice`;
     const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
@@ -256,7 +262,10 @@ export class PlaybackEngine {
           bootupcrt: 0.32,
           flicker: 0.16,
           clack: 0.16,
+          lowerclack: 0.15,
+          clickevent: 0.19,
           round: 0.24,
+          suprise: 0.24,
         }[name] ?? 0.19;
       const attack = Math.min(0.003, duration * 0.1);
       const release = Math.min(0.015, duration * 0.25);
@@ -291,74 +300,6 @@ export class PlaybackEngine {
       delete this.sfxDecodes[name];
       return null;
     }
-  }
-  updateSliderSound(position, target, speed, quietDistance, fadeDistance) {
-    const distance = Math.abs(target - position);
-    if (!this.sfxEnabled || !this.context || distance <= quietDistance) {
-      this.stopSliderSound();
-      return;
-    }
-    const direction = Math.sign(target - position);
-    const name = direction > 0 ? "neuraasliderto" : "neuraasliderfrom";
-    const buffer = this.buffers[name];
-    if (!buffer) {
-      this.decodeSfx(name);
-      return;
-    }
-    const now = this.context.currentTime;
-    const offset =
-      clamp(direction > 0 ? position : 1 - position, 0, 1) * buffer.duration;
-    const rate = speed * buffer.duration;
-    const proximity = clamp(
-      (distance - quietDistance) / (fadeDistance - quietDistance),
-      0,
-      1,
-    );
-    const level = 0.24 * proximity * proximity * (3 - 2 * proximity);
-    let voice = this.sliderVoice;
-    const expected = voice
-      ? voice.offset + (now - voice.startedAt) * voice.rate
-      : 0;
-    // Audio runs continuously at the follower's speed. Seek only on reversal or drift.
-    if (!voice || voice.name !== name || Math.abs(expected - offset) > 0.06) {
-      this.stopSliderSound();
-      const source = this.context.createBufferSource();
-      const gain = this.context.createGain();
-      source.buffer = buffer;
-      source.playbackRate.value = rate;
-      gain.gain.setValueAtTime(0, now);
-      source.connect(gain);
-      gain.connect(this.master);
-      voice = { name, source, gain, offset, startedAt: now, rate };
-      this.sliderVoice = voice;
-      source.onended = () => {
-        source.disconnect();
-        gain.disconnect();
-        if (this.sliderVoice === voice) this.sliderVoice = null;
-      };
-      source.start(now, Math.min(offset, buffer.duration - 0.0001));
-    }
-    const param = voice.gain.gain;
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now);
-    else {
-      param.cancelScheduledValues(now);
-      param.setValueAtTime(param.value, now);
-    }
-    param.linearRampToValueAtTime(level, now + 0.03);
-  }
-  stopSliderSound() {
-    const voice = this.sliderVoice;
-    if (!voice) return;
-    this.sliderVoice = null;
-    const now = this.context.currentTime;
-    const param = voice.gain.gain;
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now);
-    else {
-      param.cancelScheduledValues(now);
-      param.setValueAtTime(param.value, now);
-    }
-    param.linearRampToValueAtTime(0, now + 0.045);
-    voice.source.stop(now + 0.05);
   }
   async setBgmEnabled(enabled) {
     this.bgmEnabled = enabled;
@@ -425,10 +366,12 @@ export class PlaybackEngine {
     this.sfxSerial = (this.sfxSerial || 0) + 1;
     this.cueSerial = (this.cueSerial || 0) + 1;
     this.accentSerial = (this.accentSerial || 0) + 1;
+    this.surpriseSerial = (this.surpriseSerial || 0) + 1;
     this.stopVoice("sfxVoice");
     this.stopVoice("cueVoice");
     this.stopVoice("accentVoice");
-    this.stopSliderSound();
+    this.stopVoice("surpriseVoice");
+    this.scrubber?.stop();
   }
   stopVoice(voiceKey) {
     if (!this[voiceKey]) return;

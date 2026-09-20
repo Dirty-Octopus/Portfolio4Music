@@ -1,3 +1,4 @@
+import { clearScramble, scrambleText } from "./text-transition.js";
 let language = "zh";
 export const t = (zh, en) => (language === "en" ? en : zh);
 export const getLanguage = () => language;
@@ -58,7 +59,7 @@ const content = {
   youtubePlays: ["YouTube 单曲播放", "YOUTUBE / TOP RELEASE"],
   douyinLikes: ["抖音累计获赞", "DOUYIN / TOTAL LIKES"],
   playground: ["有趣的东西", "OFF THE RECORD"],
-  rotary: ["旋钮", "ROTARY"],
+  rotary: ["摇把", "WINDOW CRANK"],
 };
 
 // Explicit selectors keep translation separate from playback and icon markup.
@@ -103,7 +104,7 @@ const markup = {
     "SELECTED WORKS<br>AN INDEPENDENT ARCHIVE",
   ],
   ".image-index > span": ["音乐<br>作品", "AUDIO<br>WORKS"],
-  ".scene-corner > span": ["画面处理", "DISPLAY"],
+  ".scene-corner > span": ["视觉主题", "THEME"],
   ".hero-bottom > span:first-child": [
     "作曲，是构建世界的另一种方式。",
     "COMPOSITION IS A FORM OF WORLD BUILDING.",
@@ -172,10 +173,10 @@ const markup = {
   "#system-title": ["界面控制", "INTERFACE.CONTROL"],
   ".system-description": ["声音与显示", "SOUND & DISPLAY"],
   ".system-section:has(.system-treatments button[data-treatment]) h3": [
-    "画面处理",
-    "DISPLAY PROCESSING",
+    "视觉主题",
+    "VISUAL THEME",
   ],
-  ".system-section > p": ["图像色调", "ARTWORK TONE"],
+  ".system-section > p": ["石墨 / 氧化 / 磷光", "GRAPHITE / OXIDE / PHOSPHOR"],
   ".system-switch-row:has(#motion-toggle) > span": [
     "界面动画",
     "INTERFACE MOTION",
@@ -216,12 +217,57 @@ const attributes = {
   "#system-open": ["打开系统控制台", "Open system controls"],
   "#system-close": ["关闭系统控制台", "Close system controls"],
   "#softness": content.softness,
-  "#rotary-knob": ["旋钮", "Rotary dial"],
-  "#neuraa-slider": ["滑块目标", "Fader target"],
-  ".scene-corner > div": ["画面处理", "Display processing"],
+  "#rotary-knob": ["车窗摇把", "Window crank"],
+  "#neuraa-slider": ["音频滑块", "Audio scrubber"],
+  ".scene-corner > div": ["视觉主题", "Visual theme"],
 };
 
-export function setLanguage(value) {
+function reserve(element, pair) {
+  // Only reserve wrapping copy. Inline labels use their control's fixed geometry.
+  if (
+    !element.matches("p,.hero-description") ||
+    element.closest("button,#system-dialog")
+  )
+    return;
+  const width = element.getBoundingClientRect().width;
+  if (!width || !element.getClientRects().length) return;
+  const clone = element.cloneNode(false);
+  clone.removeAttribute("data-ascii");
+  clone.classList.remove("ascii-scramble");
+  clone.setAttribute("aria-hidden", "true");
+  Object.assign(clone.style, {
+    position: "fixed",
+    visibility: "hidden",
+    pointerEvents: "none",
+    top: "-10000px",
+    left: "0",
+    width: `${width}px`,
+    height: "auto",
+    minHeight: "0",
+    maxHeight: "none",
+  });
+  element.after(clone);
+  let height = 0;
+  for (const text of pair) {
+    clone.innerHTML = text;
+    height = Math.max(height, clone.getBoundingClientRect().height);
+  }
+  clone.remove();
+  if (height) element.style.minHeight = `${Math.ceil(height)}px`;
+}
+export function reserveLanguageSpace() {
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    const pair = content[element.dataset.i18n];
+    if (pair) reserve(element, pair);
+  });
+  for (const [selector, pair] of Object.entries(markup)) {
+    document
+      .querySelectorAll(selector)
+      .forEach((element) => reserve(element, pair));
+  }
+}
+export function setLanguage(value, animate = true) {
+  clearScramble();
   language = value === "en" ? "en" : "zh";
   document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
   document.title = t(
@@ -257,4 +303,14 @@ export function setLanguage(value) {
     );
   });
   document.dispatchEvent(new Event("languagechange"));
+  reserveLanguageSpace();
+  if (animate && !document.body.classList.contains("boot-visible"))
+    scrambleText();
 }
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(reserveLanguageSpace, 150);
+});
+document.addEventListener("modulechange", reserveLanguageSpace);

@@ -1,6 +1,6 @@
-/** One reversible motion timeline keeps rapid navigation continuous.
- * Media elements remain mounted while the unified content plane folds and opens. */
+/** A shared cover/reveal timeline includes the banner, notice and content. */
 import { t, trackTitle } from "./i18n.js";
+import { scrambleText } from "./text-transition.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const labels = {
@@ -12,6 +12,7 @@ const labels = {
 let transition = null,
   heightMotion = null,
   pendingView = null,
+  generation = 0,
   options = {};
 const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
 export const motionAllowed = () =>
@@ -45,17 +46,17 @@ function commitView(view) {
   document.dispatchEvent(new CustomEvent("modulechange", { detail: view }));
 }
 function settleTransition() {
+  generation += 1;
   if (pendingView && pendingView !== $(".shell").dataset.view)
     commitView(pendingView);
   pendingView = null;
   if (transition) {
-    transition.onfinish = null;
-    transition.cancel();
+    transition.forEach((animation) => animation.cancel());
     transition = null;
   }
   heightMotion?.cancel();
   heightMotion = null;
-  $(".view-port").style.height = "";
+  $(".module-surface").style.height = "";
   $(".shell").classList.remove("reconfiguring");
   $(".workspace").inert = false;
   $(".workspace").setAttribute("aria-busy", "false");
@@ -67,8 +68,7 @@ function settleTransition() {
 export function changeView(view) {
   if (!(view in labels)) return;
   const shell = $(".shell"),
-    workspace = $(".workspace"),
-    port = $(".view-port");
+    workspace = $(".workspace");
   if (view === pendingView || (!transition && shell.dataset.view === view))
     return;
   pendingView = view;
@@ -79,63 +79,70 @@ export function changeView(view) {
     settleTransition();
     return;
   }
-  if (!transition) {
-    port.style.height = `${workspace.offsetHeight}px`;
-    shell.classList.add("reconfiguring");
-    workspace.inert = true;
-    workspace.setAttribute("aria-busy", "true");
-    transition = workspace.animate(
-      [
+  if (transition) return;
+  shell.classList.add("reconfiguring");
+  workspace.inert = true;
+  workspace.setAttribute("aria-busy", "true");
+  sweep();
+}
+
+async function sweep() {
+  const ticket = ++generation;
+  const surface = $(".module-surface");
+  const layers = $$(".module-wipe i");
+  const move = (from, to, duration, closing) =>
+    layers.map((layer, index) =>
+      layer.animate(
+        [
+          { transform: `translateX(${from}%) skewX(-12deg)` },
+          { transform: `translateX(${to}%) skewX(-12deg)` },
+        ],
         {
-          opacity: 1,
-          transform: "translateY(0) scale(1)",
-          clipPath: "inset(0% 0% 0% 0%)",
-          filter: "blur(0px)",
-        },
-        {
-          opacity: 0.6,
-          transform: "translateY(8px) scale(.975, .94)",
-          clipPath: "inset(18% 0% 18% 0%)",
-          filter: "blur(.7px)",
-          offset: 0.55,
-        },
-        {
-          opacity: 0,
-          transform: "translateY(12px) scale(.95, .88)",
-          clipPath: "inset(50% 0% 50% 0%)",
-          filter: "blur(2px)",
-        },
-      ],
-      { duration: 680, easing: "cubic-bezier(.55,0,.3,1)", fill: "both" },
-    );
-    transition.pause();
-    transition.currentTime = 0;
-    transition.onfinish = () => {
-      if (transition.playbackRate < 0) {
-        settleTransition();
-        return;
-      }
-      const from = port.getBoundingClientRect().height;
-      heightMotion?.cancel();
-      if (pendingView) commitView(pendingView);
-      pendingView = null;
-      const to = workspace.offsetHeight;
-      port.style.height = `${to}px`;
-      heightMotion = port.animate(
-        [{ height: `${from}px` }, { height: `${to}px` }],
-        {
-          duration: 900,
-          easing: "cubic-bezier(.22,.7,.12,1)",
+          duration,
+          delay: (closing ? index : 2 - index) * 65,
+          easing: closing
+            ? "cubic-bezier(.55,.04,.4,1)"
+            : "cubic-bezier(.18,.7,.18,1)",
           fill: "both",
         },
-      );
-      transition.updatePlaybackRate(-0.76);
-      transition.play();
-    };
-  }
-  // Reversing preserves currentTime; requests during closing only replace the destination.
-  transition.updatePlaybackRate(shell.dataset.view === view ? -0.76 : 1);
-  transition.play();
+      ),
+    );
+  transition = move(115, 0, 460, true);
+  await Promise.all(
+    transition.map((animation) => animation.finished.catch(() => {})),
+  );
+  if (ticket !== generation) return;
+  const from = surface.offsetHeight;
+  if (pendingView) commitView(pendingView);
+  pendingView = null;
+  const to = surface.offsetHeight;
+  surface.style.height = `${to}px`;
+  heightMotion = surface.animate(
+    [{ height: `${from}px` }, { height: `${to}px` }],
+    {
+      duration: 680,
+      easing: "cubic-bezier(.22,.7,.12,1)",
+      fill: "both",
+    },
+  );
+  transition.forEach((animation) => animation.cancel());
+  transition = move(0, -115, 640, false);
+  scrambleText(surface);
+  await Promise.all(
+    [...transition, heightMotion].map((animation) =>
+      animation.finished.catch(() => {}),
+    ),
+  );
+  if (ticket !== generation) return;
+  transition.forEach((animation) => animation.cancel());
+  transition = null;
+  heightMotion.cancel();
+  heightMotion = null;
+  surface.style.height = "";
+  const next = pendingView;
+  pendingView = null;
+  if (next && next !== $(".shell").dataset.view) changeView(next);
+  else settleTransition();
 }
 export function logAction(message) {
   if ($("#last-action")) $("#last-action").textContent = message;
@@ -143,17 +150,17 @@ export function logAction(message) {
 function processArtwork(value) {
   if (!["mono", "duotone", "halftone"].includes(value)) return;
   document.body.dataset.treatment = value;
+  try {
+    localStorage.setItem("portfolio-theme", value);
+  } catch {
+    /* Storage may be unavailable. */
+  }
   $$("button[data-treatment]").forEach((el) => {
     const active = el.dataset.treatment === value;
     el.setAttribute("aria-pressed", String(active));
     el.classList.toggle("active", active);
   });
-  const hero = $(".hero");
-  hero.classList.remove("processing");
-  void hero.offsetWidth;
-  if (motionAllowed()) hero.classList.add("processing");
-  setTimeout(() => hero.classList.remove("processing"), 1600);
-  logAction(`${t("显示", "DISPLAY")} / ${value.toUpperCase()}`);
+  logAction(`${t("主题", "THEME")} / ${value.toUpperCase()}`);
 }
 function inspectTrack(track) {
   if (!track) return;
@@ -168,6 +175,11 @@ function inspectTrack(track) {
 }
 export function initInterface(config) {
   options = config;
+  try {
+    processArtwork(localStorage.getItem("portfolio-theme") || "duotone");
+  } catch {
+    processArtwork("duotone");
+  }
   const dialog = $("#system-dialog");
   const close = () => {
     if (!dialog.open || dialog.classList.contains("closing")) return;

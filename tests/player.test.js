@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { Scrubber } from "../src/scrubber.js";
+import { SurpriseBag } from "../src/surprise.js";
 import {
   PlaybackEngine,
   formatTime,
@@ -573,66 +575,86 @@ test("rapid preselection retriggers every decoded request without a cooldown", a
   assert.equal(context.sources.filter((source) => source.stopped).length, 7);
 });
 
-test("fader sound maps follower position to the correct directional source offset", async () => {
-  const { engine } = makeEngine();
-  await engine.unlock();
+async function makeScrubber(engine) {
+  const scrubber = new Scrubber(engine, async () => () => {
+    const node = new FakeNode();
+    node.playbackRate = new FakeParam(1);
+    node.pitch = new FakeParam(1);
+    return node;
+  });
+  engine.scrubber = scrubber;
   engine.buffers.neuraasliderto = { duration: 8 / 3 };
   engine.buffers.neuraasliderfrom = { duration: 8 / 3 };
-  engine.updateSliderSound(0.25, 1, 0.375, 0.08, 0.2);
-  const right = engine.sliderVoice;
+  await scrubber.prepare();
+  return scrubber;
+}
+
+test("scrubbing maps the handle directly to directional source offsets and crossfades reversals", async () => {
+  const { engine } = makeEngine();
+  await engine.unlock();
+  const scrubber = await makeScrubber(engine);
+  scrubber.move(0.25, 0.375);
+  const right = scrubber.voice;
   assert.equal(right.name, "neuraasliderto");
   assert.equal(right.source.startArgs[1], 2 / 3);
   assert.equal(right.source.playbackRate.value, 1);
-  engine.updateSliderSound(0.25, 0, 0.375, 0.08, 0.2);
-  assert.equal(engine.sliderVoice.name, "neuraasliderfrom");
-  assert.equal(engine.sliderVoice.source.startArgs[1], 2);
+  scrubber.move(0.25, -0.375);
+  assert.equal(scrubber.voice.name, "neuraasliderfrom");
+  assert.equal(scrubber.voice.source.startArgs[1], 2);
   assert.equal(right.gain.gain.ramps.at(-1).value, 0);
-  assert.equal(right.gain.gain.ramps.at(-1).time, 0.045);
-  assert.equal(right.source.stopTime, 0.05);
+  assert.equal(right.gain.gain.ramps.at(-1).time, 0.06);
+  assert.ok(Math.abs(right.source.stopTime - 0.07) < 1e-9);
 });
 
-test("fader audio runs continuously at fixed speed while the target moves", async () => {
+test("scrubbing changes tempo with drag velocity while retaining the source and original pitch", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
-  engine.buffers.neuraasliderto = { duration: 8 / 3 };
-  engine.updateSliderSound(0.1, 1, 0.375, 0.08, 0.2);
-  const voice = engine.sliderVoice;
+  const scrubber = await makeScrubber(engine);
+  scrubber.move(0.1, 0.375);
+  const voice = scrubber.voice;
   context.currentTime = 0.5;
-  engine.updateSliderSound(0.2875, 0.8, 0.375, 0.08, 0.2);
-  assert.equal(engine.sliderVoice, voice);
+  scrubber.move(0.2875, 0.75);
+  assert.equal(scrubber.voice, voice);
   assert.equal(voice.source.started, 1);
   assert.equal(voice.source.stopped, 0);
+  assert.equal(voice.source.playbackRate.value, 2);
+  assert.equal(voice.processor.playbackRate.value, 2);
+  assert.equal(voice.processor.pitch.value, 1);
 });
 
-test("fader fades with proximity and is silent before the handles overlap", async () => {
-  const { engine } = makeEngine();
+test("scrubbing uses half-second envelopes without restarting the attack at every seek", async () => {
+  const { engine, context } = makeEngine();
   await engine.unlock();
-  engine.buffers.neuraasliderto = { duration: 8 / 3 };
-  engine.updateSliderSound(0.3, 1, 0.375, 0.08, 0.2);
-  const voice = engine.sliderVoice;
-  assert.equal(voice.gain.gain.value, 0.24);
-  engine.updateSliderSound(0.3, 0.44, 0.375, 0.08, 0.2);
-  assert.ok(voice.gain.gain.value > 0 && voice.gain.gain.value < 0.24);
-  engine.updateSliderSound(0.3, 0.36, 0.375, 0.08, 0.2);
-  assert.equal(engine.sliderVoice, null);
-  assert.equal(voice.gain.gain.value, 0);
-  assert.equal(voice.source.stopTime, 0.05);
+  const scrubber = await makeScrubber(engine);
+  scrubber.move(0.3, 0.375);
+  assert.deepEqual(scrubber.envelope.gain.ramps, [{ value: 0.28, time: 0.5 }]);
+  scrubber.move(0.6, 0.75);
+  assert.equal(scrubber.envelope.gain.ramps.length, 1);
+  const voice = scrubber.voice;
+  context.currentTime = 1;
+  scrubber.release();
+  assert.equal(scrubber.voice, null);
+  assert.deepEqual(scrubber.envelope.gain.ramps.at(-1), {
+    value: 0,
+    time: 1.5,
+  });
+  assert.equal(voice.source.stopTime, 1.51);
 });
 
 test("fader audio survives UI clacks and stops with SFX off", async () => {
   const { engine } = makeEngine();
   await engine.unlock();
-  engine.buffers.neuraasliderto = { duration: 8 / 3 };
+  const scrubber = await makeScrubber(engine);
   engine.buffers.clack = { duration: 0.15932 };
-  engine.updateSliderSound(0, 1, 0.375, 0.08, 0.2);
-  const voice = engine.sliderVoice;
+  scrubber.move(0, 0.375);
+  const voice = scrubber.voice;
   await engine.sfx("clack");
   assert.equal(voice.source.stopped, 0);
   engine.sfxEnabled = false;
   engine.stopSfx();
-  engine.updateSliderSound(0.2, 1, 0.375, 0.08, 0.2);
-  assert.equal(engine.sliderVoice, null);
-  assert.equal(voice.source.stopped, 1);
+  scrubber.move(0.2, 0.375);
+  assert.equal(scrubber.voice, null);
+  assert.ok(voice.source.stopTime < 0.04);
 });
 
 test("fader decoding cannot start stale sound after a stop", async () => {
@@ -644,9 +666,37 @@ test("fader decoding cannot start stale sound after a stop", async () => {
     new Promise((resolve) => {
       finish = resolve;
     });
-  engine.updateSliderSound(0, 1, 0.375, 0.08, 0.2);
-  engine.stopSliderSound();
+  const scrubber = new Scrubber(engine, async () => () => new FakeNode());
+  const preparing = scrubber.prepare();
+  await new Promise((resolve) => setImmediate(resolve));
+  scrubber.stop();
   finish({ duration: 8 / 3 });
-  await Promise.resolve();
+  await preparing;
   assert.equal(context.sources.length, 0);
+});
+
+test("surprises are guaranteed by turn 50 and reset after every hit", () => {
+  const bag = new SurpriseBag(() => 0.99);
+  for (let cycle = 0; cycle < 3; cycle++) {
+    for (let turn = 1; turn < 50; turn++) assert.equal(bag.turn(), false);
+    assert.equal(bag.turn(), true);
+    assert.equal(bag.misses, 0);
+  }
+  bag.random = () => 0;
+  assert.equal(bag.turn(), true);
+  assert.equal(bag.misses, 0);
+});
+
+test("surprise, round and detent sounds overlap independently and all obey SFX off", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.buffers.round = { duration: 1 };
+  engine.buffers.suprise = { duration: 4 / 3 };
+  engine.buffers.clack = { duration: 0.159 };
+  await engine.sfx("round");
+  await engine.sfx("suprise");
+  await engine.sfx("clack");
+  assert.equal(context.sources.filter((source) => source.stopped).length, 0);
+  engine.stopSfx();
+  assert.equal(context.sources.filter((source) => source.stopped).length, 3);
 });

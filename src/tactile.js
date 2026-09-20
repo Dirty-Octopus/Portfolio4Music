@@ -1,5 +1,6 @@
 import { clamp } from "./player.js";
 import { initFader } from "./fader.js";
+import { SurpriseBag } from "./surprise.js";
 
 const ease = (t) => t * t * (3 - 2 * t);
 const detentCount = 12;
@@ -42,7 +43,7 @@ function initScroll(engine, motionAllowed) {
     scroll(el, from + (to - from) * ease(progress));
     rulerPosition();
     if (progress === 1) {
-      engine.sfx("clack");
+      engine.sfx("lowerclack");
       active = null;
       return;
     }
@@ -86,7 +87,8 @@ function initScroll(engine, motionAllowed) {
       const from = el.scrollTop;
       const to = clamp(Math.round(from / step) * step, 0, maxScroll(el));
       if (Math.abs(to - from) <= 1) {
-        engine.sfx("clack");
+        scroll(el, to);
+        engine.sfx("lowerclack");
         return;
       }
       active = { el, from, to, start: performance.now() };
@@ -111,7 +113,8 @@ function initScroll(engine, motionAllowed) {
       begin(el);
       settle();
     },
-    { passive: true },
+    // Run before native scrolling so a previous snap cannot overwrite new input.
+    { passive: false },
   );
   document.addEventListener(
     "scroll",
@@ -122,7 +125,7 @@ function initScroll(engine, motionAllowed) {
       if (el !== gesture.el) begin(el);
       gesture.moved = true;
       const tick = Math.floor(el.scrollTop / step);
-      if (tick !== gesture.tick) engine.sfx("clack");
+      if (tick !== gesture.tick) engine.sfx("lowerclack");
       gesture.tick = tick;
       settle();
     },
@@ -140,14 +143,23 @@ function initScroll(engine, motionAllowed) {
     touching = true;
     begin(scrollable(event.target, 1));
   });
-  document.addEventListener("pointerup", () => {
+  function endTouch() {
     touching = false;
     settle();
+  }
+  document.addEventListener("pointerup", endTouch);
+  document.addEventListener("pointercancel", (event) => {
+    // Touch scrolling cancels the pointer while the finger is still on screen.
+    if (event.pointerType !== "touch") endTouch();
   });
-  document.addEventListener("pointercancel", () => {
-    touching = false;
-    settle();
-  });
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      if (!event.touches.length) endTouch();
+    },
+    { passive: true },
+  );
+  document.addEventListener("touchcancel", endTouch, { passive: true });
   document.addEventListener("keydown", (event) => {
     if (event.target.closest("input,textarea,select,button,[role=slider]"))
       return;
@@ -167,6 +179,17 @@ function initScroll(engine, motionAllowed) {
 }
 
 function initRotary(engine, motionAllowed) {
+  const surprises = new SurpriseBag();
+  const emojis = [
+    "\u2728",
+    "\ud83d\ude80",
+    "\ud83c\udf4b",
+    "\ud83d\udc7e",
+    "\ud83d\udd25",
+    "\ud83d\udc8e",
+    "\ud83c\udfb2",
+    "\ud83e\udea9",
+  ];
   const knob = document.querySelector("#rotary-knob");
   const stage = document.querySelector(".rotary-stage");
   const canvas = document.querySelector("#rotary-particles");
@@ -201,7 +224,7 @@ function initRotary(engine, motionAllowed) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
   new ResizeObserver(resize).observe(stage);
-  function burst(gold = false) {
+  function burst(gold = false, emoji = null) {
     if (!motionAllowed()) return;
     const count = gold ? 100 : 14;
     for (let i = 0; i < count; i++) {
@@ -218,6 +241,8 @@ function initRotary(engine, motionAllowed) {
           ? ["#ffe3a1", "#efbf59", "#eac67b"][i % 3]
           : ["#b5e1d5", "#d79189", "#91bed5"][i % 3],
         size: gold ? 2 : 1.3,
+        emoji,
+        rotation: Math.random() * 2 - 1,
       });
     }
     if (particles.length > 600) particles.splice(0, particles.length - 600);
@@ -231,7 +256,12 @@ function initRotary(engine, motionAllowed) {
       if (Math.abs(revolution) >= detentCount) {
         revolution = 0;
         engine.sfx("round");
-        burst(true);
+        const surprise = surprises.turn();
+        if (surprise) engine.sfx("suprise");
+        burst(
+          true,
+          surprise ? emojis[Math.floor(Math.random() * emojis.length)] : null,
+        );
         if (motionAllowed()) {
           shake?.cancel();
           shake = document
@@ -261,11 +291,16 @@ function initRotary(engine, motionAllowed) {
       previousTime = 0;
       return;
     }
-    const dt = Math.min((now - (previousTime || now - 16)) / 1000, 0.032);
+    const dt = Math.min((now - (previousTime || now - 16)) / 1000, 0.1);
     previousTime = now;
     if (motionAllowed()) {
-      velocity += ((target - angle) * 480 - velocity * 36) * dt;
-      angle += velocity * dt;
+      // Small integration steps keep the same spring response on slower frames.
+      const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
+      const step = dt / steps;
+      for (let i = 0; i < steps; i++) {
+        velocity += ((target - angle) * 480 - velocity * 36) * step;
+        angle += velocity * step;
+      }
     } else {
       angle = target;
       velocity = 0;
@@ -277,6 +312,7 @@ function initRotary(engine, motionAllowed) {
     }
     feedback(Math.round(angle / detent));
     knob.style.transform = `rotate(${angle}deg)`;
+    knob.style.setProperty("--crank-angle", `${angle}deg`);
     const value = Math.round(wrap(angle));
     knob.setAttribute("aria-valuenow", String(value % 360));
     knob.setAttribute("aria-valuetext", `${value % 360}°`);
@@ -289,6 +325,17 @@ function initRotary(engine, motionAllowed) {
       p.vx *= Math.exp(-1.6 * dt);
       p.vy = p.vy * Math.exp(-1.6 * dt) + 58 * dt;
       ctx.globalAlpha = Math.max(0, 1 - p.age / p.life);
+      if (p.emoji) {
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation * p.age);
+        ctx.font = "22px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(p.emoji, 0, 0);
+        ctx.restore();
+        continue;
+      }
       ctx.strokeStyle = p.color;
       ctx.lineWidth = p.size;
       ctx.beginPath();
