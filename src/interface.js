@@ -10,6 +10,7 @@ const labels = {
   audio: ["声音作品", "AUDIO ARCHIVE"],
   video: ["影像剧场", "VISUAL THEATER"],
   fun: ["有趣的东西", "PLAYGROUND"],
+  contact: ["联系方式", "CONTACT"],
 };
 let transition = null,
   heightMotion = null,

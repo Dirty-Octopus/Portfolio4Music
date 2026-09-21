@@ -59,6 +59,10 @@ const content = {
   youtubePlays: ["YouTube 单曲播放", "YOUTUBE / TOP RELEASE"],
   douyinLikes: ["抖音累计获赞", "DOUYIN / TOTAL LIKES"],
   playground: ["有趣的东西", "OFF THE RECORD"],
+  contact: ["联系方式", "CONTACT"],
+  contactWelcome: ["欢迎约稿 / 咨询。", "Open for commissions / inquiries."],
+  email: ["电邮", "Email"],
+  wechat: ["微信", "WeChat"],
   rotary: ["摇把", "WINDOW CRANK"],
   crtLens: ["视角畸变 · 实验性", "CRT LENS · EXPERIMENTAL"],
   themeBlue: ["经典蓝", "BLUE"],
@@ -92,6 +96,7 @@ const markup = {
   '[data-nav="audio"] b': ["声音作品", "Audio"],
   '[data-nav="video"] b': ["影像剧场", "Visual"],
   '[data-nav="fun"] b': ["有趣的东西", "Playground"],
+  '[data-nav="contact"] b': ["联系方式", "Contact"],
   "#system-open > span:last-child": ["设置", "SYSTEM"],
   ".hero-copy > .micro": [
     "独立音乐 / 声音实验 / 创作档案",
@@ -221,6 +226,13 @@ const attributes = {
   "#softness": content.softness,
   "#rotary-knob": ["车窗摇把", "Window crank"],
   "#neuraa-slider": ["音频滑块", "Audio scrubber"],
+  '[data-copy-contact="yuandy24@icloud.com"]': ["复制邮箱", "Copy email"],
+  '[data-copy-contact="256246372"]': ["复制 QQ", "Copy QQ"],
+  '[data-copy-contact="CambridgePocketKnife"]': [
+    "复制微信号",
+    "Copy WeChat ID",
+  ],
+  '[data-copy-contact="dirtyoctopus"]': ["复制 Discord ID", "Copy Discord ID"],
   ".scene-corner > div": ["视觉主题", "Visual theme"],
 };
 

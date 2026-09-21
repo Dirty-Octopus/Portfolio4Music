@@ -58,15 +58,18 @@ body[data-treatment="duotone"] .hero-art {
 }
 .shell[data-view="overview"] .workspace,
 .shell[data-view="fun"] .workspace,
+.shell[data-view="contact"] .workspace,
 .shell[data-view="video"] .workspace {
   display: block;
 }
 .biography,
+.contact,
 .playground {
   display: none;
 }
 .shell[data-view="overview"] .workspace > :not(.biography),
 .shell[data-view="fun"] .workspace > :not(.playground),
+.shell[data-view="contact"] .workspace > :not(.contact),
 .shell[data-view="video"] .catalog,
 .shell[data-view="video"] .inspector {
   display: none;
@@ -74,7 +77,8 @@ body[data-treatment="duotone"] .hero-art {
 .shell[data-view="overview"] .biography {
   display: grid;
 }
-.shell[data-view="fun"] .playground {
+.shell[data-view="fun"] .playground,
+.shell[data-view="contact"] .contact {
   display: block;
 }
 .shell[data-view="video"] .visual-column {
@@ -93,6 +97,7 @@ body[data-treatment="duotone"] .hero-art {
   margin-inline: auto;
 }
 .shell[data-view="overview"] .board-notice,
+.shell[data-view="contact"] .board-notice,
 .shell[data-view="fun"] .board-notice {
   display: none;
 }

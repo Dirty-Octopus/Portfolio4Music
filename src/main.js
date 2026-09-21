@@ -7,6 +7,7 @@ import "./choreography.css";
 import "./experience.css";
 import "./refinements.css";
 import "./console.css";
+import "./contact.css";
 import { AudioAssets, openBootValve } from "./loading.js";
 import { initCrtLens } from "./crt.js";
 import { initBackground } from "./background.js";
@@ -37,7 +38,9 @@ import musicIcon from "@phosphor-icons/core/assets/regular/music-notes.svg?raw";
 import caretUpIcon from "@phosphor-icons/core/assets/regular/caret-up.svg?raw";
 import caretDownIcon from "@phosphor-icons/core/assets/regular/caret-down.svg?raw";
 import resetIcon from "@phosphor-icons/core/assets/regular/arrow-counter-clockwise.svg?raw";
+import copyIcon from "@phosphor-icons/core/assets/regular/copy.svg?raw";
 const icons = {
+  copy: copyIcon,
   "arrow-counter-clockwise": resetIcon,
   "caret-down": caretDownIcon,
   "caret-up": caretUpIcon,
@@ -657,6 +660,21 @@ function focusSection(name) {
 }
 $$("[data-nav]").forEach((button) =>
   button.addEventListener("click", () => focusSection(button.dataset.nav)),
+);
+$$("[data-copy-contact]").forEach((button) =>
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyContact);
+      toast(t("已复制：", "Copied: ") + button.dataset.copyContact);
+    } catch {
+      toast(
+        t(
+          "复制未成功，请选中联系方式手动复制。",
+          "Could not copy. Select the contact details to copy manually.",
+        ),
+      );
+    }
+  }),
 );
 $("#explore").addEventListener("click", () => {
   focusSection("audio");
