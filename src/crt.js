@@ -79,12 +79,18 @@ export function initCrtLens(t) {
     filter.setAttribute("filterUnits", "userSpaceOnUse");
     filter.setAttribute("primitiveUnits", "userSpaceOnUse");
     filter.setAttribute("width", String(width));
-    filter.setAttribute("height", String(Math.max(root.scrollHeight, height)));
+    filter.setAttribute("height", String(height));
     mapImage.setAttribute("x", "0");
-    mapImage.setAttribute("y", String(scrollY));
+    mapImage.setAttribute("y", "0");
     mapImage.setAttribute("width", String(width));
     mapImage.setAttribute("height", String(height));
-    mapImage.setAttribute("href", canvas.toDataURL());
+    const mapUrl = canvas.toDataURL();
+    mapImage.setAttribute("href", mapUrl);
+    mapImage.setAttributeNS(
+      "http://www.w3.org/1999/xlink",
+      "xlink:href",
+      mapUrl,
+    );
     document
       .querySelector("#crt-displacement")
       .setAttribute("scale", String(scale));
@@ -112,7 +118,7 @@ export function initCrtLens(t) {
   }
   control.addEventListener("click", () => setEnabled(!enabled));
   document.addEventListener("settingsreset", () => {
-    setEnabled(false);
+    setEnabled(true);
     try {
       localStorage.removeItem("portfolio-crt");
     } catch {
@@ -125,13 +131,6 @@ export function initCrtLens(t) {
     sync();
   });
   window.addEventListener("resize", scheduleMap);
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (active()) mapImage.setAttribute("y", String(scrollY));
-    },
-    { passive: true },
-  );
   new ResizeObserver(scheduleMap).observe(document.body);
 
   function mapped(event) {
@@ -264,8 +263,8 @@ export function initCrtLens(t) {
     true,
   );
   try {
-    setEnabled(localStorage.getItem("portfolio-crt") === "true");
+    setEnabled(localStorage.getItem("portfolio-crt") !== "false");
   } catch {
-    sync();
+    setEnabled(true);
   }
 }

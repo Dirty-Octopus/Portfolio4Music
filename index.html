@@ -41,7 +41,22 @@
             xChannelSelector="R"
             yChannelSelector="G"
             scale="0"
+            result="curved-page"
           />
+          <feImage
+            id="crt-background"
+            x="0"
+            y="0"
+            width="140"
+            height="140"
+            preserveAspectRatio="none"
+            result="background-tile"
+          />
+          <feTile in="background-tile" result="background" />
+          <feMerge>
+            <feMergeNode in="background" />
+            <feMergeNode in="curved-page" />
+          </feMerge>
         </filter>
         <filter id="logo-cutout" color-interpolation-filters="sRGB">
           <feColorMatrix

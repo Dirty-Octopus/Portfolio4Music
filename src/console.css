@@ -478,9 +478,38 @@ body[data-treatment="mono"]
 .system-backdrop[hidden] {
   display: none;
 }
+:root {
+  background-color: #000;
+  background-image: var(--ambient-grain);
+  background-size: 140px 140px;
+  background-position: var(--ambient-x, 0px) var(--ambient-y, 0px);
+  background-attachment: fixed;
+}
 html.crt-mode {
-  filter: url(#crt-lens);
-  background: #0e1212;
+  background: transparent;
+}
+.crt-surface {
+  position: fixed;
+  inset: 0;
+  filter: blur(calc(var(--screen-softness) * 1.8));
+}
+.viewport-surface.crt-mode .crt-surface {
+  filter: url(#crt-lens) blur(calc(var(--screen-softness) * 1.8));
+}
+.viewport-surface #site {
+  position: relative;
+}
+body {
+  background: transparent;
+}
+body::before {
+  display: none;
+}
+.screen-diffusion {
+  display: none;
+}
+.system-dialog {
+  filter: none;
 }
 html.crt-mode .nav.crt-hover:not(.active) {
   background: var(--strata-far);

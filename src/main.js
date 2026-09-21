@@ -9,6 +9,8 @@ import "./refinements.css";
 import "./console.css";
 import { AudioAssets, openBootValve } from "./loading.js";
 import { initCrtLens } from "./crt.js";
+import { initBackground } from "./background.js";
+import { initViewportSurface } from "./viewport.js";
 import { initTactileExperience } from "./tactile.js";
 import { t, trackTitle, setLanguage } from "./i18n.js";
 import {
@@ -776,7 +778,9 @@ initInterface({
   },
 });
 initTactileExperience({ engine, motionAllowed });
+initViewportSurface();
 initCrtLens(t);
+initBackground(motionAllowed);
 document.addEventListener("settingsreset", async () => {
   engine.sfxEnabled = true;
   engine.bgmEnabled = true;

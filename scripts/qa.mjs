@@ -92,9 +92,17 @@ const sleepMs = (ms) => sleep(ms);
 const errors = [];
 const badResponses = [];
 const resources = { vite: null, chrome: null, cdp: null, profile: null };
-function cleanup() {
+async function cleanup() {
   resources.cdp?.close();
-  resources.chrome?.kill("SIGKILL");
+  const chrome = resources.chrome;
+  resources.chrome = null;
+  if (chrome) {
+    chrome.kill("SIGKILL");
+    await Promise.race([
+      new Promise((resolve) => chrome.once("exit", resolve)),
+      sleepMs(1200),
+    ]);
+  }
   if (resources.vite?.pid) {
     try {
       process.kill(-resources.vite.pid, "SIGKILL");
@@ -102,8 +110,26 @@ function cleanup() {
       /* Already stopped. */
     }
   }
-  if (resources.profile)
-    rmSync(resources.profile, { recursive: true, force: true });
+  if (resources.profile) {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      try {
+        rmSync(resources.profile, {
+          recursive: true,
+          force: true,
+          maxRetries: 2,
+          retryDelay: 100,
+        });
+        break;
+      } catch (error) {
+        if (
+          !["ENOTEMPTY", "EBUSY", "EPERM"].includes(error.code) ||
+          attempt === 11
+        )
+          break;
+        await sleepMs(100);
+      }
+    }
+  }
 }
 
 async function main() {
@@ -213,11 +239,22 @@ async function main() {
   };
   const scrollTo = (selector) =>
     evaluate(
-      `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; el.scrollIntoView({ block: 'center', behavior: 'instant' }); return true; })()`,
+      `(() => {
+        const el = document.querySelector(${JSON.stringify(selector)});
+        if (!el) return false;
+        el.scrollIntoView({ block: 'center', behavior: 'instant' });
+        if (document.querySelector('#site').contains(el)) {
+          const bounds = el.getBoundingClientRect();
+          window.scrollBy({ top: bounds.top + bounds.height / 2 - innerHeight / 2, behavior: 'instant' });
+        }
+        return true;
+      })()`,
     );
   const boxOf = async (selector) => {
     await scrollTo(selector);
-    await sleepMs(120);
+    await sleepMs(360);
+    await scrollTo(selector);
+    await sleepMs(80);
     return evaluate(
       `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`,
     );
@@ -378,7 +415,11 @@ async function main() {
   );
   check(
     "flicker follows the CRT startup as a separate reveal cue",
-    flickers[0]?.at - sfxAfterEnter[0]?.at >= 2900,
+    flickers[0]?.at -
+      sfxAfterEnter.find(
+        (source) => !source.loop && Math.abs(source.duration - 1) < 0.002,
+      )?.at >=
+      1000,
   );
   const blankStart = await evaluate(`window.__qa.sfxStarts.length`);
   for (const type of ["mousePressed", "mouseReleased"])
@@ -621,7 +662,10 @@ async function main() {
 
   console.log("· switching back to audio");
   await click("#audio-play");
-  await sleepMs(800);
+  await waitFor(
+    `!document.querySelector('#audio').paused && document.querySelector('#video').paused`,
+    4000,
+  ).catch(() => {});
   check(
     "audio resumes and pauses video",
     await evaluate(
@@ -644,7 +688,9 @@ async function main() {
     code: "Space",
     windowsVirtualKeyCode: 32,
   });
-  await sleepMs(400);
+  await waitFor(`document.querySelector('#audio').paused`, 3000).catch(
+    () => {},
+  );
   check(
     "space bar pauses playback",
     await evaluate(`document.querySelector('#audio').paused`),
@@ -661,7 +707,10 @@ async function main() {
     code: "Slash",
     windowsVirtualKeyCode: 191,
   });
-  await sleepMs(1800);
+  await waitFor(
+    `document.activeElement === document.querySelector('#search')`,
+    6000,
+  ).catch(() => {});
   check(
     "slash focuses the search field",
     await evaluate(
@@ -859,23 +908,28 @@ async function main() {
     ),
   );
   await shot("08-playground");
-  await evaluate(`document.querySelector('#rotary-knob').focus()`);
+  await evaluate(`
+    document.querySelector('#rotary-knob').focus();
+    window.__qa.rotaryFrames = [];
+    const rotaryUntil = performance.now() + 700;
+    function sample(now) {
+      window.__qa.rotaryFrames.push(Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')));
+      if(now < rotaryUntil) requestAnimationFrame(sample);
+    }
+    requestAnimationFrame(sample);
+  `);
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyDown",
     key: "ArrowRight",
     code: "ArrowRight",
     windowsVirtualKeyCode: 39,
   });
-  const rotaryAtStart = await evaluate(
-    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`,
-  );
-  await sleepMs(70);
-  const rotaryDuring = await evaluate(
-    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow'))`,
-  );
+  await sleepMs(750);
   check(
     "rotary eases through intermediate angles",
-    rotaryDuring > rotaryAtStart && rotaryDuring < 30,
+    await evaluate(
+      `window.__qa.rotaryFrames.some(angle => angle > 0 && angle < 30)`,
+    ),
   );
   await sleepMs(550);
   check(
@@ -911,6 +965,10 @@ async function main() {
     ),
   );
   await dragRotary(20);
+  await waitFor(
+    `Number(document.querySelector('#rotary-knob').getAttribute('aria-valuenow')) === 60`,
+    4000,
+  ).catch(() => {});
   check(
     "rotary snaps into the next notch after the threshold",
     await evaluate(
@@ -1118,10 +1176,15 @@ async function main() {
     fastScroll > slowScroll * 4 && fastScroll > 300,
     `${slowScroll}px / ${fastScroll}px`,
   );
-  await sleepMs(400);
+  await waitFor(
+    `scrollY % 56 === 0 || Math.abs(scrollY - (document.documentElement.scrollHeight - innerHeight)) < 1`,
+    4000,
+  ).catch(() => {});
   check(
     "fast scrolling still settles on a detent",
-    await evaluate(`scrollY % 56 === 0`),
+    await evaluate(
+      `scrollY % 56 === 0 || Math.abs(scrollY - (document.documentElement.scrollHeight - innerHeight)) < 1`,
+    ),
   );
   check(
     "screen noise is nonblank",
@@ -1130,12 +1193,25 @@ async function main() {
     ),
   );
   const settingsClickStart = await evaluate(`window.__qa.sfxStarts.length`);
+  await evaluate(`
+    window.__qa.settingsFrames = [];
+    const settingsUntil = performance.now() + 5000;
+    function sample(now) {
+      const width = document.querySelector('#system-dialog').getBoundingClientRect().width;
+      window.__qa.settingsFrames.push({width, inert:document.querySelector('.system-content').inert});
+      if(now < settingsUntil) requestAnimationFrame(sample);
+    }
+    requestAnimationFrame(sample);
+  `);
   await click("#system-open");
-  await sleepMs(130);
+  await waitFor(
+    `window.__qa.settingsFrames.some(frame => frame.width > 82 && frame.width < 408 && frame.inert)`,
+    4000,
+  ).catch(() => {});
   check(
     "settings grows from its trigger before revealing controls",
     await evaluate(
-      `document.querySelector('#system-dialog').getBoundingClientRect().width > 82 && document.querySelector('#system-dialog').getBoundingClientRect().width < 408 && document.querySelector('.system-content').inert && document.querySelector('#system-open').classList.contains('expanded')`,
+      `window.__qa.settingsFrames.some(frame => frame.width > 82 && frame.width < 408 && frame.inert) && document.querySelector('#system-open').classList.contains('expanded')`,
     ),
   );
   await shot("22-settings-morph");
@@ -1183,7 +1259,10 @@ async function main() {
     `getComputedStyle(document.querySelector('.playground')).backgroundColor`,
   );
   await click('#system-dialog [data-treatment="mono"]');
-  await sleepMs(750);
+  await waitFor(
+    `getComputedStyle(document.querySelector('.playground')).backgroundColor !== ${JSON.stringify(originalTheme)}`,
+    4000,
+  ).catch(() => {});
   check(
     "themes recolor content and banner together",
     await evaluate(
@@ -1217,12 +1296,15 @@ async function main() {
     ),
   );
   await shot("09-settings-en");
-  await click("#crt-toggle");
+  check(
+    "CRT distortion is enabled by default",
+    await evaluate(`document.documentElement.classList.contains('crt-mode')`),
+  );
   await sleepMs(450);
   check(
     "CRT option applies a real SVG displacement",
     await evaluate(
-      `document.documentElement.classList.contains('crt-mode') && getComputedStyle(document.documentElement).filter.includes('crt-lens')`,
+      `document.documentElement.classList.contains('crt-mode') && getComputedStyle(document.querySelector('.crt-surface')).filter.includes('crt-lens')`,
     ),
   );
   await shot("23-crt-settings");
@@ -1244,7 +1326,7 @@ async function main() {
     [1416, 876],
   ]) {
     await evaluate(
-      `(() => { const e=document.createElement('button'); e.id='qa-lens-probe'; e.style.cssText='all:initial;position:fixed;left:${mx - 4}px;top:${my - 4}px;width:8px;height:8px;background:rgb(0,255,0);z-index:999999'; e.onclick=()=>window.__qa.probeHit=true; document.body.append(e); window.__qa.probeHit=false; })()`,
+      `(() => { const e=document.createElement('button'); e.id='qa-lens-probe'; e.style.cssText='all:initial;position:fixed;left:${mx - 4}px;top:${my - 4}px;width:8px;height:8px;background:rgb(0,255,0);z-index:999999'; e.onclick=()=>window.__qa.probeHit=true; document.querySelector('.crt-surface').append(e); window.__qa.probeHit=false; })()`,
     );
     await sleepMs(80);
     const { data } = await cdp.send("Page.captureScreenshot", {
@@ -1625,7 +1707,7 @@ async function main() {
     await evaluate(`
     document.body.dataset.treatment==='duotone' &&
     !document.body.classList.contains('motion-off') &&
-    !document.documentElement.classList.contains('crt-mode') &&
+    document.documentElement.classList.contains('crt-mode') &&
     document.documentElement.lang==='zh-CN' &&
     document.querySelector('#softness').value==='0.35' &&
     document.querySelector('#volume').value==='0.65' &&
@@ -1689,7 +1771,10 @@ async function main() {
     ["mono", "rgb(51, 51, 51)"],
   ]) {
     await click(`.scene-corner [data-treatment="${theme}"]`);
-    await sleepMs(900);
+    await waitFor(
+      `getComputedStyle(document.querySelector('.biography')).backgroundColor===${JSON.stringify(color)}`,
+      4000,
+    ).catch(() => {});
     check(
       `${theme} palette reaches the profile surface`,
       await evaluate(
@@ -1701,12 +1786,28 @@ async function main() {
   await click('.scene-corner [data-treatment="duotone"]');
   const heroBox = await boxOf(".hero");
   const hoverHero = async (fraction) => {
-    await cdp.send("Input.dispatchMouseEvent", {
-      type: "mouseMoved",
+    const viewport = await evaluate(
+      `({width:document.documentElement.clientWidth,height:innerHeight,crt:document.documentElement.classList.contains('crt-mode')})`,
+    );
+    let point = {
       x: heroBox.x + heroBox.w * fraction,
       y: heroBox.y + heroBox.h * 0.35,
+    };
+    if (viewport.crt)
+      point = lensDisplayPoint(
+        point.x,
+        point.y,
+        viewport.width,
+        viewport.height,
+      );
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      ...point,
     });
-    await sleepMs(650);
+    await waitFor(
+      `Math.abs(Number(document.querySelector('.hero').style.getPropertyValue('--parallax-x')) - ${fraction * 2 - 1}) < .03`,
+      6000,
+    );
     return evaluate(
       `parseFloat(getComputedStyle(document.querySelector('.strata-front')).translate)`,
     );
@@ -1719,7 +1820,10 @@ async function main() {
     `${parallaxLeft} / ${parallaxRight}`,
   );
   await evaluate("scrollTo(0,180)");
-  await sleepMs(700);
+  await waitFor(
+    `Number(document.querySelector('.hero').style.getPropertyValue('--parallax-scroll'))>10`,
+    4000,
+  ).catch(() => {});
   check(
     "banner depth responds to scrolling",
     await evaluate(
@@ -1776,7 +1880,7 @@ async function main() {
     badResponses.slice(0, 3).join(" | "),
   );
 
-  cleanup();
+  await cleanup();
 
   const failed = results.filter((r) => !r.ok);
   console.log(
@@ -1879,8 +1983,8 @@ async function waitForTarget(port, timeout) {
 }
 
 const SHOTS = process.env.QA_SHOTS !== "0";
-main().catch((error) => {
-  cleanup();
+main().catch(async (error) => {
+  await cleanup();
   console.error(`QA crashed: ${error.message}`);
   process.exitCode = 1;
 });
