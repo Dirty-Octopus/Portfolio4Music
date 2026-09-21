@@ -1691,7 +1691,7 @@ async function main() {
   await click("#system-open");
   await evaluate(`
     localStorage.setItem('qa-unrelated', 'keep');
-    document.querySelector('#system-dialog [data-treatment="halftone"]').click();
+    document.querySelector('#system-dialog [data-treatment="duotone"]').click();
     document.querySelector('#softness').value = '0';
     document.querySelector('#softness').dispatchEvent(new Event('input', {bubbles:true}));
     document.querySelector('#volume').value = '.2';
@@ -1705,11 +1705,11 @@ async function main() {
   check(
     "reset restores every preference and preserves unrelated storage",
     await evaluate(`
-    document.body.dataset.treatment==='duotone' &&
+    document.body.dataset.treatment==='halftone' &&
     !document.body.classList.contains('motion-off') &&
-    document.documentElement.classList.contains('crt-mode') &&
+    !document.documentElement.classList.contains('crt-mode') &&
     document.documentElement.lang==='zh-CN' &&
-    document.querySelector('#softness').value==='0.35' &&
+    document.querySelector('#softness').value==='0.2' &&
     document.querySelector('#volume').value==='0.65' &&
     document.querySelector('#loop').getAttribute('aria-pressed')==='false' &&
     document.querySelector('.transport').classList.contains('collapsed') &&

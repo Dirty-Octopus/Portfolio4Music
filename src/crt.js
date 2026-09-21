@@ -67,6 +67,9 @@ export function initCrtLens(t) {
     pending = 0;
   const pointers = new Map();
   const active = () => enabled && !document.fullscreenElement;
+  const defaultEnabled = () =>
+    !matchMedia("(max-width: 640px), (hover: none) and (pointer: coarse)")
+      .matches;
   const interactive = "button,a,input,textarea,select,[role=slider],video";
 
   function updateMap() {
@@ -103,7 +106,7 @@ export function initCrtLens(t) {
     control.textContent = enabled ? t("开", "ON") : t("关", "OFF");
     root.classList.toggle("crt-mode", active());
   }
-  function setEnabled(value) {
+  function setEnabled(value, persist = true) {
     enabled = value;
     updateMap();
     sync();
@@ -111,14 +114,14 @@ export function initCrtLens(t) {
     hover = null;
     pointers.clear();
     try {
-      localStorage.setItem("portfolio-crt", String(enabled));
+      if (persist) localStorage.setItem("portfolio-crt", String(enabled));
     } catch {
       /* Optional preference. */
     }
   }
   control.addEventListener("click", () => setEnabled(!enabled));
   document.addEventListener("settingsreset", () => {
-    setEnabled(true);
+    setEnabled(defaultEnabled(), false);
     try {
       localStorage.removeItem("portfolio-crt");
     } catch {
@@ -263,8 +266,9 @@ export function initCrtLens(t) {
     true,
   );
   try {
-    setEnabled(localStorage.getItem("portfolio-crt") !== "false");
+    const saved = localStorage.getItem("portfolio-crt");
+    setEnabled(saved === null ? defaultEnabled() : saved !== "false", false);
   } catch {
-    setEnabled(true);
+    setEnabled(defaultEnabled(), false);
   }
 }

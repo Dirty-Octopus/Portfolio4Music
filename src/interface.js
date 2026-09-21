@@ -152,11 +152,11 @@ async function sweep() {
 export function logAction(message) {
   if ($("#last-action")) $("#last-action").textContent = message;
 }
-function processArtwork(value) {
+function processArtwork(value, persist = true) {
   if (!["mono", "duotone", "halftone"].includes(value)) return;
   document.body.dataset.treatment = value;
   try {
-    localStorage.setItem("portfolio-theme", value);
+    if (persist) localStorage.setItem("portfolio-theme", value);
   } catch {
     /* Storage may be unavailable. */
   }
@@ -183,9 +183,12 @@ function inspectTrack(track) {
 export function initInterface(config) {
   options = config;
   try {
-    processArtwork(localStorage.getItem("portfolio-theme") || "duotone");
+    processArtwork(
+      localStorage.getItem("portfolio-theme") || "halftone",
+      false,
+    );
   } catch {
-    processArtwork("duotone");
+    processArtwork("halftone", false);
   }
   initSettings({
     motionAllowed,
@@ -249,14 +252,14 @@ export function initInterface(config) {
     $("#softness-value").textContent = Number(event.target.value).toFixed(2);
   });
   $("#settings-reset").addEventListener("click", () => {
-    processArtwork("duotone");
+    processArtwork("halftone", false);
     try {
       localStorage.removeItem("portfolio-theme");
     } catch {
       /* Optional preference. */
     }
     document.body.classList.remove("motion-off");
-    $("#softness").value = "0.35";
+    $("#softness").value = "0.2";
     $("#softness").dispatchEvent(new Event("input", { bubbles: true }));
     updateMotion();
     document.dispatchEvent(new Event("settingsreset"));

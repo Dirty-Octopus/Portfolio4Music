@@ -1,6 +1,6 @@
 /* Millennium bulletin-board density with slow, mechanical panel choreography. */
 :root {
-  --screen-softness: 0.35px;
+  --screen-softness: 0.2px;
   --ease-machine: cubic-bezier(0.76, 0, 0.18, 1);
   --line: #596670;
   --muted: #a4b1b9;
