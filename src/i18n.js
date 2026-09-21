@@ -52,8 +52,8 @@ const content = {
     "My most-played independent release on YouTube has surpassed 390,000 views, and my work on Douyin has received approximately 240,000 likes in total.",
   ],
   biographyRecognition: [
-    "部分作品也曾得到 HOYO-MiX 总监 TSAR 崔瀚普、制作人 Exyl、国内知名嘻哈制作人、韩国 HYBE 娱乐公司制作人等业内人士的认可。",
-    "Some of my work has also received recognition from industry professionals including HOYO-MiX director TSAR (Cui Hanpu), producer Exyl, prominent Chinese hip-hop producers and producers at South Korea's HYBE.",
+    "部分作品也曾得到 HOYO-MiX 制作人 TSAR 崔瀚普、制作人 Exyl、国内知名嘻哈制作人、韩国 HYBE 娱乐公司制作人等业内人士的认可。",
+    "Some of my work has also received recognition from industry professionals including HOYO-MiX producer TSAR (Cui Hanpu), producer Exyl, prominent Chinese hip-hop producers and producers at South Korea's HYBE.",
   ],
   yearsFreelance: ["年个人接稿经验", "YEARS FREELANCING"],
   youtubePlays: ["YouTube 单曲播放", "YOUTUBE / TOP RELEASE"],
