@@ -5,6 +5,7 @@ dist/
 .qa/
 *.log
 # Original media remain local; only prepared site assets are tracked.
+/audio-sources/
 /*.mp3
 /*.wav
 /*.mp4

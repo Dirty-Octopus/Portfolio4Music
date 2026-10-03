@@ -22,8 +22,10 @@ def waveform(p):
     top=max(peaks) or 1
     return [round(x/top,3) for x in peaks]
 tracks=[]
-for p in sorted(ROOT.iterdir()):
-    if p.suffix.lower() not in ['.mp3','.wav','.m4a','.flac','.ogg']: continue
+audio_sources=ROOT/'audio-sources'
+sources=sorted([p for folder in ('music','sound-design') for p in (audio_sources/folder).iterdir() if p.is_file()])
+for p in sources:
+    if p.suffix.lower() not in ['.mp3','.wav','.m4a','.flac','.ogg','.aif','.aiff']: continue
     ident=hashlib.sha1(p.name.encode()).hexdigest()[:10]
     ext='.wav' if p.suffix.lower()=='.wav' else p.suffix.lower()
     dest=OUT/f'{ident}{ext}'
@@ -42,10 +44,11 @@ site_titles={
 }
 for name,title in site_titles.items():
     dest=OUT/f'{name}.wav'
-    ff('-i',ROOT/f'SFX/{name}.wav','-c:a','pcm_s16le',dest)
+    source=audio_sources/'site-sfx'/f'{name}.wav'
+    ff('-i',source,'-c:a','pcm_s16le',dest)
     sfx[name]=f'media/{dest.name}'
     category='sound-design' if name == 'pad' else 'sfx'
-    tracks.append(dict(id=name,title=title,filename=f'SFX/{name}.wav',src=sfx[name],category=category,duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
+    tracks.append(dict(id=name,title=title,filename=f'audio-sources/site-sfx/{name}.wav',src=sfx[name],category=category,duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
 videos=[]
 for p in sorted(ROOT.glob('*.mp4')):
     dest=OUT/'showreel.mp4'
