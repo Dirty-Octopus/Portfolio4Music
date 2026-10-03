@@ -22,6 +22,24 @@ const titles = {
   "（注意音量）重型金属乐稿件-废稿": "Heavy Metal / Unused Draft (Loud)",
   界面点击音效: "Interface Click",
   启动通知音效: "Startup Notification",
+  "低价值物品提示音": "Common Item Cue",
+  "常规装备提示音": "Standard Equipment Cue",
+  "高价值装备提示音": "High-value Equipment Cue",
+  "最高价值装备提示音": "Top-tier Equipment Cue",
+  "环境背景音乐": "Ambient Background Music",
+  "启动音效": "Startup Sound",
+  "界面转场音效": "Interface Transition",
+  "界面预选音效": "Interface Focus Cue",
+  "旋钮反馈音效": "Rotary Feedback",
+  "滚动反馈音效": "Scroll Feedback",
+  "点击反馈音效": "Click Feedback",
+  "交互反馈音效": "Interaction Feedback",
+  "惊喜音效": "Surprise Cue",
+  "滑块移入音效": "Slider In Cue",
+  "滑块移出音效": "Slider Out Cue",
+  "进度完成音效": "Completion Cue",
+  "扫描音效": "Scan Cue",
+  "屏幕闪烁音效": "Screen Flicker",
 };
 export const trackTitle = (track) =>
   t(track.title, titles[track.title] || track.title);
@@ -44,8 +62,8 @@ const content = {
     "MUSIC PRODUCTION / MIXING / SOUND DESIGN",
   ],
   biographyExperience: [
-    "曾在美国独立游戏工作室 Biobyte Studio 兼职担任音频总监，有三年以上个人接稿经验，并参与过多个来自国内外的中小型商业混音、音乐及音效项目。",
-    "Previously a part-time Audio Director at US indie game studio Biobyte Studio, with over three years of freelance experience and contributions to small and mid-sized commercial mixing, music and sound design projects in China and abroad.",
+    "曾为海外独立游戏团队担任音频方向职务，有三年以上个人接稿经验，并参与过多个来自国内外的中小型商业混音、音乐及音效项目。",
+    "Previously held an audio leadership role with an overseas indie game team, with over three years of freelance experience and contributions to small and mid-sized commercial mixing, music and sound design projects in China and abroad.",
   ],
   biographyReach: [
     "个人独立作品在 YouTube 单曲最高播放量超过 39 万，抖音作品累计获赞约 24 万。",

@@ -18,11 +18,11 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: tests, Vite build, GitHub
 
 ## Content
 
-- 16 musical works, with searchable categories and precomputed real waveforms.
-- 2 interface sound effects, also available under the SFX category.
+- 19 music works, with searchable categories and precomputed real waveforms.
+- 2 sound-design studies, 4 project sound cues, and 14 site audio assets (ambient music and interface effects) in the sound-design category.
 - 1 independent 1080p H.264/AAC video player with draggable timeline and fullscreen.
 - All media and artwork are served locally from `public/`, including the ambient pad, interface and toy sounds, CRT startup, and one-shot flicker.
-- Original local recordings remain untouched and ignored at repository root. `npm run media` regenerates portable media and `src/media.json` when originals and FFmpeg are available. This is not needed to build or deploy.
+- Original music, sound-design, video, and effect sources remain local and are ignored by Git. Prepared playback assets are tracked under `public/media/`; `npm run media` regenerates those assets and `src/media.json` when the local originals and FFmpeg are available.
 
 ## Interaction
 

@@ -4,7 +4,7 @@ dist/
 .reference/
 .qa/
 *.log
-# Original media remain untouched locally; portable copies live in public/media.
+# Original media remain local; only prepared site assets are tracked.
 /*.mp3
 /*.wav
 /*.mp4

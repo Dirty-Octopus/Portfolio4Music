@@ -538,7 +538,7 @@ async function main() {
     "overview contains the personal biography instead of the archive grid",
     await evaluate(`
     document.querySelector('.biography').offsetWidth > 0 && document.querySelector('.audio-library').offsetWidth === 0 &&
-    document.querySelector('.biography').textContent.includes('Biobyte Studio')
+    document.querySelector('.biography').textContent.includes('海外独立游戏团队')
   `),
   );
   check(

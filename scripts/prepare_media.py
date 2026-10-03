@@ -9,6 +9,7 @@ def ff(*args):
 def probe(p):
     return json.loads(subprocess.check_output(['ffprobe','-v','quiet','-show_format','-show_streams','-of','json',str(p)]))
 def category(name):
+    if any(x in name for x in ['音效','反馈','提示音','启动音','点击音','转场音','扫描音','闪烁音','完成音','滑块','旋钮','滚动']): return 'sound-design'
     if any(x in name for x in ['影视','管弦']): return 'cinematic'
     if any(x in name for x in ['游戏','音游']): return 'game'
     if any(x in name for x in ['凯尔特','阿拉伯']): return 'world'
@@ -32,15 +33,19 @@ for p in sorted(ROOT.iterdir()):
     meta=probe(dest); audio=next(s for s in meta['streams'] if s.get('codec_type')=='audio')
     tracks.append(dict(id=ident,title=p.stem,filename=p.name,src=f'media/{dest.name}',category=category(p.stem),duration=float(meta['format']['duration']),sampleRate=audio['sample_rate'],format=ext[1:].upper(),peaks=waveform(dest)))
 sfx={}
-for name in ['clickeffect','notification']:
+site_titles={
+    'pad':'环境背景音乐','bootupcrt':'启动音效','flicker':'屏幕闪烁音效',
+    'preselect':'界面预选音效','clack':'旋钮反馈音效','lowerclack':'滚动反馈音效',
+    'clickeffect':'点击反馈音效','clickevent':'交互反馈音效','suprise':'惊喜音效',
+    'neuraasliderto':'滑块移入音效','neuraasliderfrom':'滑块移出音效','round':'进度完成音效',
+    'scanner':'扫描音效','notification':'启动通知音效',
+}
+for name,title in site_titles.items():
     dest=OUT/f'{name}.wav'
     ff('-i',ROOT/f'SFX/{name}.wav','-c:a','pcm_s16le',dest)
     sfx[name]=f'media/{dest.name}'
-    tracks.append(dict(id=name,title='界面点击音效' if name=='clickeffect' else '启动通知音效',filename=f'SFX/{name}.wav',src=sfx[name],category='sfx',duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
+    tracks.append(dict(id=name,title=title,filename=f'SFX/{name}.wav',src=sfx[name],category='sound-design',duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
 videos=[]
-for name in ['pad', 'preselect', 'bootupcrt', 'flicker', 'clack', 'lowerclack',
-             'clickevent', 'scanner', 'round', 'suprise', 'neuraasliderto', 'neuraasliderfrom']:
-    ff('-i', ROOT/f'SFX/{name}.wav', '-c:a', 'pcm_s16le', OUT/f'{name}.wav')
 for p in sorted(ROOT.glob('*.mp4')):
     dest=OUT/'showreel.mp4'
     if not dest.exists():

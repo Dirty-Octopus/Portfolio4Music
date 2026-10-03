@@ -87,6 +87,7 @@ const categories = [
   ["world", "世界 / 民族", "WORLD MUSIC"],
   ["contemporary", "流行 / 实验", "CONTEMPORARY"],
   ["sfx", "界面音效", "INTERFACE SFX"],
+  ["sound-design", "音效设计", "SOUND DESIGN"],
 ];
 let current =
   manifest.tracks.find((t) => t.title === "管弦乐创作") || manifest.tracks[0];
@@ -156,7 +157,7 @@ function renderFilters() {
   $("#filters").innerHTML = categories
     .map(
       ([key, label, en]) =>
-        `<button class="filter ${key === category ? "active" : ""}" data-category="${key}" aria-pressed="${key === category}"><span>${t(label, en)}<small>${t(en, "DIRTY OCTOPUS")}</small></span><small>${String(manifest.tracks.filter((t) => (key === "all" ? t.category !== "sfx" : t.category === key)).length).padStart(2, "0")}</small></button>`,
+        `<button class="filter ${key === category ? "active" : ""}" data-category="${key}" aria-pressed="${key === category}"><span>${t(label, en)}<small>${t(en, "DIRTY OCTOPUS")}</small></span><small>${String(manifest.tracks.filter((track) => (key === "all" ? track.category !== "sfx" : key === "sound-design" ? track.category === "sfx" || track.category === "sound-design" : track.category === key)).length).padStart(2, "0")}</small></button>`,
     )
     .join("");
 }
@@ -168,7 +169,7 @@ function labelFor(key) {
 function renderTracks() {
   filtered = manifest.tracks.filter(
     (t) =>
-      (category === "all" ? t.category !== "sfx" : t.category === category) &&
+      (category === "all" ? t.category !== "sfx" && t.category !== "sound-design" : category === "sound-design" ? t.category === "sfx" || t.category === "sound-design" : t.category === category) &&
       `${t.title} ${trackTitle(t)} ${t.filename}`.toLowerCase().includes(query),
   );
   const cat = categories.find((c) => c[0] === category);
