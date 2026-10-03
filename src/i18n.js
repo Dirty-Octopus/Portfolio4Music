@@ -40,6 +40,10 @@ const titles = {
   "进度完成音效": "Completion Cue",
   "扫描音效": "Scan Cue",
   "屏幕闪烁音效": "Screen Flicker",
+  "音效-Deltamachine项目-低价值物品": "Deltamachine / Common Item Cue",
+  "音效-Deltamachine项目-常规装备": "Deltamachine / Standard Equipment Cue",
+  "音效-Deltamachine项目-高价值装备": "Deltamachine / High-value Equipment Cue",
+  "音效-Deltamachine项目-最高价值装备": "Deltamachine / Top-tier Equipment Cue",
 };
 export const trackTitle = (track) =>
   t(track.title, titles[track.title] || track.title);

@@ -44,7 +44,8 @@ for name,title in site_titles.items():
     dest=OUT/f'{name}.wav'
     ff('-i',ROOT/f'SFX/{name}.wav','-c:a','pcm_s16le',dest)
     sfx[name]=f'media/{dest.name}'
-    tracks.append(dict(id=name,title=title,filename=f'SFX/{name}.wav',src=sfx[name],category='sound-design',duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
+    category='sound-design' if name == 'pad' else 'sfx'
+    tracks.append(dict(id=name,title=title,filename=f'SFX/{name}.wav',src=sfx[name],category=category,duration=float(probe(dest)['format']['duration']),sampleRate='44100',format='WAV',peaks=waveform(dest)))
 videos=[]
 for p in sorted(ROOT.glob('*.mp4')):
     dest=OUT/'showreel.mp4'
