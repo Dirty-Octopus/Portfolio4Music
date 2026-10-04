@@ -1,3 +1,42 @@
+// A large file on a slow connection may take longer than thirty seconds.
+// Abort stalled transfers, not transfers that are still delivering audio.
+export async function fetchCompleteAudio(url, idleMs = 30000) {
+  const controller = new AbortController();
+  let timer;
+  const renew = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), idleMs);
+  };
+  let reader;
+  try {
+    renew();
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Audio unavailable: ${url}`);
+    renew();
+    if (!response.body?.getReader) return await response.arrayBuffer();
+    reader = response.body.getReader();
+    const chunks = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      size += value.byteLength;
+      renew();
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes.buffer;
+  } finally {
+    clearTimeout(timer);
+    reader?.releaseLock();
+  }
+}
+
 /** Cache complete audio files; only decoded interaction sounds stay in PCM memory. */
 export class AudioAssets {
   constructor(engine, resolve) {
@@ -31,11 +70,7 @@ export class AudioAssets {
           let data;
           for (let attempt = 0; attempt < 2; attempt++) {
             try {
-              const response = await fetch(this.resolve(path), {
-                signal: AbortSignal.timeout(30000),
-              });
-              if (!response.ok) throw new Error(`Audio unavailable: ${path}`);
-              data = await response.arrayBuffer();
+              data = await fetchCompleteAudio(this.resolve(path));
               if (!data.byteLength) throw new Error(`Empty audio: ${path}`);
               break;
             } catch (error) {
