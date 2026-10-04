@@ -148,6 +148,10 @@ export class PlaybackEngine {
       if (source && element.getAttribute("src") !== source) {
         element.src = source;
         element.load();
+      } else if (element.error || element.networkState === 3) {
+        // A failed media resource remains unusable until load() resets it.
+        // Retrying the visible play control must start a fresh request.
+        element.load();
       }
       if (selected) selected();
       if (element.ended) element.currentTime = 0;

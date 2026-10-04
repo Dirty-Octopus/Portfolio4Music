@@ -216,6 +216,35 @@ test("play reuses the source when it already matches", async () => {
   assert.equal(audio.playCalls, 2);
 });
 
+test("the play control reloads a failed video resource before retrying playback", async () => {
+  const { engine, video } = makeEngine();
+  video.src = "media/showreel.mp4";
+  video.error = { code: 2 };
+  video.load = () => {
+    video.loadCalls++;
+    video.error = null;
+  };
+  const play = video.play.bind(video);
+  video.play = () => {
+    assert.equal(video.error, null);
+    return play();
+  };
+  await engine.toggle("video");
+  assert.equal(video.loadCalls, 1);
+  assert.equal(video.paused, false);
+  assert.equal(video.src, "media/showreel.mp4");
+});
+
+test("a browser that discarded a media source can retry the same selected track", async () => {
+  const { engine, audio } = makeEngine();
+  await engine.play("audio", "media/a.mp3");
+  await engine.pause("audio");
+  audio.networkState = 3;
+  await engine.play("audio", "media/a.mp3");
+  assert.equal(audio.loadCalls, 2);
+  assert.equal(audio.paused, false);
+});
+
 test("starting video pauses audio (no overlapping playback)", async () => {
   const { engine, audio, video } = makeEngine();
   await engine.play("audio", "media/a.mp3");
