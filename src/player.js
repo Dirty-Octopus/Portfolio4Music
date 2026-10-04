@@ -235,23 +235,27 @@ export class PlaybackEngine {
       }),
     );
   }
-  async sfx(name) {
+  async sfx(name, { repeat = false, lane: channel } = {}) {
     if (!this.sfxEnabled || !this.context) return;
     const cue = name === "bootupcrt" || name === "flicker";
-    if (cue && this.playedCues.has(name)) return;
-    const lane = cue
-      ? "cue"
-      : name === "round"
-        ? "accent"
-        : name === "suprise"
-          ? "surprise"
-          : name === "clickeffect"
-            ? "click"
-            : name === "clickevent"
-              ? "event"
-              : name === "scanner"
-                ? "scanner"
-                : "sfx";
+    if (cue && !repeat && this.playedCues.has(name)) return;
+    const lane =
+      channel ||
+      (name === "water"
+        ? "water"
+        : cue
+          ? "cue"
+          : name === "round"
+            ? "accent"
+            : name === "suprise"
+              ? "surprise"
+              : name === "clickeffect"
+                ? "click"
+                : name === "clickevent"
+                  ? "event"
+                  : name === "scanner"
+                    ? "scanner"
+                    : "sfx");
     const serialKey = `${lane}Serial`;
     const voiceKey = `${lane}Voice`;
     const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
@@ -278,6 +282,7 @@ export class PlaybackEngine {
           scanner: 0.2,
           round: 0.24,
           suprise: 0.24,
+          water: 0.5,
         }[name] ?? 0.19;
       const attack = Math.min(0.003, duration * 0.1);
       const release = Math.min(0.015, duration * 0.25);
@@ -288,7 +293,7 @@ export class PlaybackEngine {
       source.connect(gain);
       gain.connect(this.master);
       source.start();
-      if (cue) this.playedCues.add(name);
+      if (cue && !repeat) this.playedCues.add(name);
       source.onended = () => {
         source.disconnect();
         gain.disconnect();
@@ -383,7 +388,14 @@ export class PlaybackEngine {
     this.stopVoice("cueVoice");
     this.stopVoice("accentVoice");
     this.stopVoice("surpriseVoice");
-    for (const lane of ["click", "event", "scanner"]) {
+    for (const lane of [
+      "click",
+      "event",
+      "scanner",
+      "water",
+      "logo",
+      "startup",
+    ]) {
       this[`${lane}Serial`] = (this[`${lane}Serial`] || 0) + 1;
       this.stopVoice(`${lane}Voice`);
     }

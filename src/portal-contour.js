@@ -1,5 +1,5 @@
 /** A single continuous height field, rendered as topographic isobands. */
-export function initPortalContour({ motionAllowed = () => true } = {}) {
+export function initPortalContour({ motionAllowed = () => true, engine } = {}) {
   const boot = document.querySelector("#boot");
   const face = boot?.querySelector(".boot-face");
   if (!face) return null;
@@ -202,7 +202,7 @@ export function initPortalContour({ motionAllowed = () => true } = {}) {
   }
 
   function ripple(event) {
-    if (!active || !canAnimate() || event.button > 0) return;
+    if (!active || boot.dataset.phase === "opening" || event.button > 0) return;
     if (event.target.closest("button,a,input,select,textarea,[role=button]"))
       return;
     const rect = face.getBoundingClientRect();
@@ -212,6 +212,11 @@ export function initPortalContour({ motionAllowed = () => true } = {}) {
     const left = mobile ? 0.91 * (1 - y) : 0.65 - 0.4 * y;
     const right = left + (mobile ? 0.45 : 0.25);
     if (x < left || x > right || y < 0 || y > 1) return;
+    engine
+      ?.unlock()
+      .then(() => engine.sfx("water"))
+      .catch(() => {});
+    if (!canAnimate()) return;
     ripples.push({ x, y, time: terrainTime });
     if (ripples.length > 4) ripples.shift();
   }

@@ -149,11 +149,13 @@ const soundPaths = Object.fromEntries(
     "round",
     "scanner",
     "notification",
+    "water",
   ].map((name) => [name, `media/${name}.wav`]),
 );
 let assetsReady,
   portal,
   logosReady,
+  logoController,
   opening = false;
 video.src = asset(manifest.videos[0].src);
 video.poster = asset(manifest.videos[0].poster);
@@ -348,7 +350,7 @@ async function enterExperience(language) {
 async function finishEntry() {
   if (opening) return;
   opening = true;
-  engine.sfx("notification");
+  engine.sfx("bootupcrt", { lane: "startup" });
   await engine.setBgmEnabled(engine.bgmEnabled);
   $("#boot-status").textContent = t(
     "连接完成 / 声音已就绪",
@@ -406,7 +408,12 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener(
   "click",
   (event) => {
-    if (event.target.closest(":disabled,[inert]")) return;
+    if (event.target.closest(":disabled,[inert],[data-sfx=logo]")) return;
+    if (
+      event.target.closest("#boot") &&
+      !event.target.closest("button,a,input")
+    )
+      return;
     const interactive =
       !event.target.closest(".playground") &&
       event.target.closest("button,a,input,select,textarea,video");
@@ -791,9 +798,11 @@ initTactileExperience({ engine, motionAllowed });
 initViewportSurface();
 initCrtLens(t);
 initBackground(motionAllowed);
-portal = initPortal({ engine, motionAllowed });
-initPortalContour({ motionAllowed });
-logosReady = initMetalLogos({ engine, motionAllowed });
+portal = initPortal({ engine, motionAllowed, getLogo: () => logoController });
+initPortalContour({ motionAllowed, engine });
+logosReady = initMetalLogos({ engine, motionAllowed }).then((controller) => {
+  logoController = controller;
+});
 document.addEventListener("settingsreset", async () => {
   engine.sfxEnabled = true;
   engine.bgmEnabled = true;

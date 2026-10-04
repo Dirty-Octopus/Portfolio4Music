@@ -1,3 +1,4 @@
+import { runAssembly } from "./portal-assembly.js";
 const ease = "cubic-bezier(.22,.7,.18,1)";
 const symbols = ".:+*#%/01[]";
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -8,7 +9,7 @@ const animate = (element, frames, options) => {
     .finished.catch(() => {});
 };
 
-export function initPortal({ engine, motionAllowed }) {
+export function initPortal({ engine, motionAllowed, getLogo = () => null }) {
   const boot = document.querySelector("#boot");
   const entry = boot.querySelector(".language-entry");
   const buttons = [...entry.querySelectorAll("button")];
@@ -171,94 +172,30 @@ export function initPortal({ engine, motionAllowed }) {
     const site = document.querySelector("#site");
     site.style.top = "0px";
     document.body.classList.add("portal-opening");
+    const finish = () => {
+      boot.hidden = true;
+      document.body.classList.remove("boot-visible", "portal-opening");
+      site.inert = false;
+      boot.removeEventListener("pointerdown", unlock);
+      boot.removeEventListener("keydown", unlock);
+      document.dispatchEvent(new Event("portalentered"));
+    };
     if (motionAllowed()) {
-      const face = boot.querySelector(".boot-face");
-      const logo = boot.querySelector(".boot-symbol");
-      const pieces = [...boot.querySelector(".boot-center").children].filter(
-        (el) => el !== logo,
+      await new Promise((resolve) =>
+        runAssembly({
+          boot,
+          site,
+          logo: getLogo(),
+          onFinish: () => {
+            finish();
+            resolve();
+          },
+        }),
       );
-      const panels = [
-        ...site.querySelectorAll(
-          ".masthead,.hero,.chassis-bridge,.board-notice,.workspace,footer",
-        ),
-      ];
-      const jobs = [
-        animate(
-          face,
-          [{ opacity: 1 }, { opacity: 1, offset: 0.36 }, { opacity: 0 }],
-          { duration: 1620 },
-        ),
-        animate(
-          boot.querySelector(".portal-field"),
-          [
-            { transform: "translateY(0) scaleY(1)", opacity: 1 },
-            {
-              transform: "translateY(-28%) scaleY(.52)",
-              opacity: 0.65,
-              offset: 0.65,
-            },
-            { transform: "translateY(-48%) scaleY(.015)", opacity: 0 },
-          ],
-          { duration: 1450 },
-        ),
-        ...pieces.map((element, i) =>
-          animate(
-            element,
-            [
-              { opacity: 1, transform: "translateY(0)" },
-              { opacity: 0, transform: `translateY(${-14 - i * 3}px)` },
-            ],
-            { duration: 520, delay: i * 42 },
-          ),
-        ),
-        ...panels.map((element, i) =>
-          animate(
-            element,
-            [
-              { opacity: 0, transform: "translateY(28px) scale(.985)" },
-              { opacity: 1, transform: "translateY(0) scale(1)" },
-            ],
-            { duration: 1080, delay: 550 + i * 75 },
-          ),
-        ),
-        animate(
-          boot.querySelector(".boot-rule"),
-          [{ opacity: 1 }, { opacity: 0, transform: "translateY(-14px)" }],
-          { duration: 580, delay: 220 },
-        ),
-        animate(
-          boot.querySelector(".boot-foot"),
-          [{ opacity: 1 }, { opacity: 0 }],
-          { duration: 420 },
-        ),
-      ];
-      const from = logo.getBoundingClientRect();
-      const to = site.querySelector(".identity-mark").getBoundingClientRect();
-      jobs.push(
-        animate(
-          logo,
-          [
-            { transform: "translate(0,0) scale(1)", opacity: 1 },
-            { opacity: 1, offset: 0.6 },
-            {
-              transform: `translate(${to.left - from.left}px,${to.top - from.top}px) scale(${to.width / from.width})`,
-              opacity: 0,
-            },
-          ],
-          { duration: 1350 },
-        ),
-      );
-      await Promise.all(jobs);
-      panels.forEach((panel) =>
-        panel.getAnimations().forEach((animation) => animation.cancel()),
-      );
+    } else {
+      getLogo()?.finishTransfer();
+      finish();
     }
-    boot.hidden = true;
-    document.body.classList.remove("boot-visible", "portal-opening");
-    site.inert = false;
-    boot.removeEventListener("pointerdown", unlock);
-    boot.removeEventListener("keydown", unlock);
-    document.dispatchEvent(new Event("portalentered"));
   }
   return {
     reveal,

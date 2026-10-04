@@ -168,6 +168,11 @@
 body.boot-visible:not(.portal-opening) #site {
   visibility: hidden;
 }
+/* Reserve the scrollbar through loading and entry so the frame never jumps
+   sideways when the portal releases document scrolling. */
+html {
+  scrollbar-gutter: stable;
+}
 body.portal-opening #site {
   visibility: visible;
   pointer-events: none;
@@ -260,4 +265,41 @@ body.motion-off .portal-hourglass svg {
   #boot .enter-button svg {
     margin-left: auto;
   }
+}
+/* Structural paths and rail-mounted modules share the 2.5-second entry clock. */
+.assembly-frame {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 102;
+  pointer-events: none;
+  overflow: hidden;
+}
+.assembly-trace {
+  fill: none;
+  stroke: var(--secondary);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+.assembly-trace.major {
+  stroke: var(--accent);
+  stroke-width: 1.4;
+}
+.assembly-label {
+  fill: var(--secondary);
+  font: 8px var(--mono);
+  letter-spacing: 1.4px;
+}
+body.portal-opening .transport {
+  visibility: visible;
+}
+body.portal-opening :is(.masthead, .workspace, .hero, .chassis-bridge) {
+  transform-origin: left top;
+}
+body.portal-opening .hero .hero-shutter {
+  display: none;
+}
+.chrome-emblem canvas {
+  transition: none;
 }

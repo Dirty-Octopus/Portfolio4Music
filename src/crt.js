@@ -2,6 +2,12 @@ const SIZE = 192;
 const STRENGTH = 0.042;
 const maps = new Map();
 
+// The reserved scrollbar gutter survives portal scroll locking. Measure the
+// actual filtered surface, so its lens and hit-testing use the same width.
+export const crtViewportWidth = () =>
+  document.querySelector(".crt-surface")?.clientWidth ||
+  document.documentElement.clientWidth;
+
 function displacement(width, height) {
   const key = `${width}:${height}`;
   if (maps.has(key)) return maps.get(key);
@@ -78,7 +84,7 @@ export function initCrtLens(t) {
   function updateMap() {
     pending = 0;
     if (!active()) return;
-    const width = root.clientWidth,
+    const width = crtViewportWidth(),
       height = innerHeight;
     const { pixels, scale } = displacement(width, height);
     context.putImageData(new ImageData(pixels, SIZE, SIZE), 0, 0);
@@ -143,7 +149,7 @@ export function initCrtLens(t) {
     return lensSourcePoint(
       event.clientX,
       event.clientY,
-      root.clientWidth,
+      crtViewportWidth(),
       innerHeight,
     );
   }

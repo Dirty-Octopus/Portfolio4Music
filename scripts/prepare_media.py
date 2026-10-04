@@ -40,7 +40,7 @@ site_titles={
     'preselect':'界面预选音效','clack':'旋钮反馈音效','lowerclack':'滚动反馈音效',
     'clickeffect':'点击反馈音效','clickevent':'交互反馈音效','suprise':'惊喜音效',
     'neuraasliderto':'滑块移入音效','neuraasliderfrom':'滑块移出音效','round':'进度完成音效',
-    'scanner':'扫描音效','notification':'启动通知音效',
+    'scanner':'扫描音效','notification':'启动通知音效','water':'涟漪水滴音效',
 }
 for name,title in site_titles.items():
     dest=OUT/f'{name}.wav'

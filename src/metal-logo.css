@@ -1,4 +1,4 @@
-/* A shared black stage for the original wordmark's beveled metal extrusion. */
+/* Transparent hosts; a single shared chrome object moves between them. */
 .identity-mark.metal-logo,
 .boot .boot-symbol.metal-logo {
   position: relative;
@@ -7,7 +7,7 @@
   isolation: isolate;
   flex-shrink: 0;
   padding: 0;
-  background: #020304;
+  background: transparent;
   border: 0;
   border-radius: 0;
   clip-path: none;
@@ -43,19 +43,6 @@
   transition: opacity 240ms ease;
   pointer-events: none;
 }
-.metal-logo > .metal-logo-canvas {
-  display: block;
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 240ms ease;
-}
-.metal-logo.metal-ready > .metal-logo-canvas {
-  opacity: 1;
-}
 .identity-mark.metal-logo.metal-ready > img,
 .boot .boot-symbol.metal-logo.metal-ready > img {
   opacity: 0;
@@ -76,7 +63,6 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .metal-logo > .metal-logo-canvas,
   .identity-mark.metal-logo > img,
   .boot .boot-symbol.metal-logo > img {
     transition: none;
@@ -85,4 +71,24 @@
 .brand-home {
   color: inherit;
   text-decoration: none;
+}
+
+.chrome-emblem {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 101;
+  pointer-events: none;
+  background: transparent;
+  will-change: transform;
+  contain: layout style;
+}
+.chrome-emblem[hidden] {
+  display: none;
+}
+.chrome-emblem canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
 }

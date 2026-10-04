@@ -359,6 +359,73 @@ test("sfx is silent when disabled", async () => {
   assert.equal(context.sources.length, 0);
 });
 
+test("repeated logo boot sounds do not consume or interrupt the entry cue", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = {
+    bootupcrt: new ArrayBuffer(8),
+    flicker: new ArrayBuffer(8),
+  };
+  await engine.sfx("bootupcrt", { repeat: true, lane: "logo" });
+  const firstLogo = engine.logoVoice.source;
+  assert.equal(engine.playedCues.has("bootupcrt"), false);
+  await engine.sfx("flicker");
+  const flicker = engine.cueVoice.source;
+  await engine.sfx("bootupcrt", { lane: "startup" });
+  const startup = engine.startupVoice.source;
+  await engine.sfx("bootupcrt", { repeat: true, lane: "logo" });
+  assert.equal(firstLogo.stopped, 1);
+  assert.equal(startup.stopped, 0);
+  assert.equal(flicker.stopped, 0);
+  await engine.sfx("bootupcrt", { lane: "startup" });
+  assert.equal(context.sources.length, 4);
+  engine.stopSfx();
+  assert.equal(startup.stopped, 1);
+  assert.equal(flicker.stopped, 1);
+  assert.equal(context.sources[3].stopped, 1);
+});
+
+test("rapid water ripples replace the previous water voice without cutting UI cues", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = { water: new ArrayBuffer(8), flicker: new ArrayBuffer(8) };
+  await engine.sfx("flicker");
+  const cue = engine.cueVoice.source;
+  await engine.sfx("water");
+  const water = engine.waterVoice.source;
+  await engine.sfx("water");
+  assert.equal(water.stopped, 1);
+  assert.equal(cue.stopped, 0);
+  assert.equal(engine.waterVoice.source.stopped, 0);
+  assert.equal(context.sources.length, 3);
+  engine.stopSfx();
+  assert.equal(context.sources[2].stopped, 1);
+});
+
+test("muting cancels pending water, logo and startup decodes even after re-enabling", async () => {
+  for (const [name, options] of [
+    ["water", {}],
+    ["bootupcrt", { repeat: true, lane: "logo" }],
+    ["bootupcrt", { lane: "startup" }],
+  ]) {
+    const { engine, context } = makeEngine();
+    await engine.unlock();
+    engine.rawSfx = { [name]: new ArrayBuffer(8) };
+    let finish;
+    context.decodeAudioData = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    const pending = engine.sfx(name, options);
+    engine.sfxEnabled = false;
+    engine.stopSfx();
+    engine.sfxEnabled = true;
+    finish({ duration: 0.45 });
+    await pending;
+    assert.equal(context.sources.length, 0, name);
+  }
+});
+
 test("intro cues play once and retain their tail through hover and click sounds", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();

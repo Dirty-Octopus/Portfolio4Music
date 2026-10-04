@@ -22,6 +22,7 @@ const titles = {
   "（注意音量）重型金属乐稿件-废稿": "Heavy Metal / Unused Draft (Loud)",
   界面点击音效: "Interface Click",
   启动通知音效: "Startup Notification",
+  涟漪水滴音效: "Water Ripple",
   "低价值物品提示音": "Common Item Cue",
   "常规装备提示音": "Standard Equipment Cue",
   "高价值装备提示音": "High-value Equipment Cue",
