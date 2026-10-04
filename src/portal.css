@@ -254,9 +254,9 @@
   cursor: wait;
 }
 #boot .boot-progress {
-  height: 2px;
+  height: 3px;
   margin: 0 0 10px;
-  background: var(--edge);
+  background: #293640;
   clip-path: none;
 }
 #boot .boot-progress i {
