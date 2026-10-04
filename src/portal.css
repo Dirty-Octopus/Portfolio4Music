@@ -1,83 +1,201 @@
-/* Portal owns its viewport; saved CRT and scrolling affect only the archive. */
+/* One optical plane: portal, chrome, archive and phosphor texture. */
 #boot {
   position: fixed;
   inset: 0;
   z-index: 100;
   background: transparent;
   isolation: isolate;
+  transition: none;
 }
 #boot[hidden] {
   display: none !important;
 }
 #boot .boot-face {
   background: var(--panel-low);
+  overflow: visible;
 }
 #boot .boot-grid {
   z-index: 0;
-  opacity: 0.04;
+  opacity: 0.055;
 }
 #boot .boot-center {
-  width: min(580px, calc(100vw - 64px));
   position: relative;
   z-index: 2;
+  display: block;
+  width: min(1020px, calc(100% - 96px));
+  max-width: none;
+  transform: none;
 }
 #boot .boot-rule,
 #boot .boot-foot {
   z-index: 2;
+  color: #748693;
+}
+#boot .boot-rule {
+  border-color: #364550;
+}
+#boot .boot-foot {
+  border-color: var(--edge);
+  letter-spacing: 2px;
+}
+.portal-caption {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 2px solid var(--accent);
+  color: #a4b2be;
+  font: 8px/1.4 var(--mono);
+  letter-spacing: 1px;
+}
+.portal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+.portal-copy {
+  padding: 18px 0 24px;
 }
 #boot .boot-symbol {
   transform-origin: top left;
 }
+#boot .portal-copy > .micro {
+  font: 8px/1.5 var(--mono);
+  color: #9aabb6;
+  letter-spacing: 1px;
+}
+#boot h1 {
+  font-size: clamp(38px, 4.25vw, 62px);
+  line-height: 0.97;
+  letter-spacing: 0.3px;
+  margin: 18px 0;
+}
+#boot h1 b {
+  color: #dce6ed;
+  font-weight: 500;
+}
+#boot .boot-note {
+  color: #a4b4bf;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+.portal-visual {
+  position: relative;
+  min-width: 0;
+  min-height: 320px;
+  margin-bottom: 14px;
+  background: var(--panel-high);
+  overflow: hidden;
+  clip-path: polygon(
+    24px 0,
+    100% 0,
+    100% calc(100% - 24px),
+    calc(100% - 24px) 100%,
+    0 100%,
+    0 24px
+  );
+  transform-origin: top left;
+}
+.portal-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  background: radial-gradient(#fff 0.6px, transparent 0.7px) 0 0 / 3px 3px;
+}
+.portal-visual-title {
+  position: absolute;
+  inset: 24px 24px auto 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  color: #e2ecff;
+  font: 8px/1.3 var(--mono);
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+.portal-visual-title b {
+  font: 500 54px/1 var(--display);
+  letter-spacing: -1px;
+}
+.portal-visual-foot {
+  position: absolute;
+  bottom: 23px;
+  left: 30px;
+  color: #e2ecff;
+  font: 7px var(--mono);
+  letter-spacing: 1px;
+}
+.portal-controls {
+  border-top: 1px solid #3a4852;
+  padding-top: 15px;
+}
 #boot .entry-stage {
   position: relative;
   width: 100%;
-  height: 96px;
-  margin: 15px 0 13px;
+  height: 64px;
+  margin: 0 0 18px;
 }
-#boot .portal-hourglass {
+#boot .portal-loader {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 15px;
-  color: var(--accent);
+  gap: 22px;
+  color: #98aab8;
+  font: 8px var(--mono);
+  letter-spacing: 1.4px;
+  transform-origin: left center;
 }
-#boot .portal-hourglass[hidden] {
+#boot .portal-loader[hidden] {
   display: none;
 }
-.portal-hourglass svg {
-  width: 28px;
-  height: 38px;
-  stroke: currentColor;
-  stroke-width: 1.2;
-  animation: hourglass-turn 2.6s cubic-bezier(0.6, 0.05, 0.25, 1) infinite;
+.loader-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 118px;
+  height: 28px;
+  overflow: hidden;
 }
-.portal-hourglass .hourglass-sand {
-  fill: currentColor;
-  stroke: none;
-  opacity: 0.65;
+.loader-track i {
+  width: 20px;
+  height: 6px;
+  background: var(--accent);
+  animation: carrier-load 1.8s ease-in-out infinite;
 }
-.portal-hourglass span {
-  font: 8px var(--mono);
-  letter-spacing: 2px;
+.loader-track i:nth-child(2) {
+  animation-delay: 0.12s;
 }
-#boot .entry-ascii {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 4;
+.loader-track i:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.loader-track i:nth-child(4) {
+  animation-delay: 0.36s;
+}
+.loader-track i:nth-child(5) {
+  animation-delay: 0.48s;
+}
+@keyframes carrier-load {
+  0%,
+  75%,
+  100% {
+    opacity: 0.2;
+    transform: scaleY(1);
+  }
+  35% {
+    opacity: 1;
+    transform: scaleY(2.5);
+  }
 }
 #boot .language-entry {
   position: absolute;
   inset: 0;
   display: flex;
-  gap: 14px;
+  gap: 12px;
   margin: 0;
   min-height: 0;
-  align-items: center;
+  align-items: stretch;
 }
 #boot .language-entry:not(.is-ready) {
   visibility: hidden;
@@ -85,13 +203,13 @@
 }
 #boot .enter-button {
   position: relative;
-  height: 62px;
-  min-height: 62px;
+  height: 64px;
+  min-height: 64px;
   margin: 0;
-  padding: 0 18px;
-  background: #080a0e;
-  color: #f0f3f6;
-  border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  padding: 0 22px;
+  background: #10171d;
+  color: #e4ebf1;
+  border: 1px solid #465560;
   border-left: 3px solid var(--accent);
   box-shadow: none;
   clip-path: none;
@@ -99,7 +217,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   transition:
     background-color 0.25s,
     color 0.25s,
@@ -109,23 +227,26 @@
 #boot .enter-button::after {
   display: none;
 }
+#boot .enter-button b {
+  font-weight: 500;
+}
 #boot .enter-button span {
-  color: #a3a9b3;
+  color: #a4b4bf;
   font: 8px var(--mono);
 }
 #boot .enter-button svg {
-  transition: transform 0.35s cubic-bezier(0.22, 0.7, 0.18, 1);
+  transition: transform 0.35s cubic-bezier(0.16, 0.82, 0.2, 1);
 }
-#boot .enter-button:enabled:is(:hover, :focus-visible) {
+#boot .enter-button:enabled:is(:hover, :focus-visible, .crt-hover) {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: var(--accent);
   outline-offset: 5px;
 }
-#boot .enter-button:enabled:is(:hover, :focus-visible) span {
+#boot .enter-button:enabled:is(:hover, :focus-visible, .crt-hover) span {
   color: var(--accent-ink);
 }
-#boot .enter-button:enabled:is(:hover, :focus-visible) svg {
+#boot .enter-button:enabled:is(:hover, :focus-visible, .crt-hover) svg {
   transform: translate(3px, -3px);
 }
 #boot .enter-button:disabled {
@@ -133,43 +254,47 @@
   cursor: wait;
 }
 #boot .boot-progress {
-  height: 3px;
-  margin: 0 0 12px;
-  background: #ffffff20;
+  height: 2px;
+  margin: 0 0 10px;
+  background: var(--edge);
   clip-path: none;
 }
 #boot .boot-progress i {
   transition: width 0.22s ease-out;
 }
 #boot .boot-telemetry {
-  min-height: 26px;
+  min-height: 22px;
+  color: var(--secondary);
+}
+#boot #boot-status {
+  font-size: 8px;
+  color: #98aab8;
+}
+#boot #boot-percent {
+  font: 9px var(--mono);
+  color: var(--accent);
 }
 #boot .browser-notice {
   font: 10px/1.7 var(--mono);
-  color: #aeb9c7;
-  max-width: 440px;
-  margin: 13px 0 0;
+  color: var(--secondary);
+  max-width: 480px;
+  margin: 12px 0 0;
 }
-#boot .browser-notice[hidden] {
+#boot .browser-notice[hidden],
+#boot #boot-retry[hidden] {
   display: none;
 }
 #boot .browser-notice span {
   display: block;
   font-size: 8px;
-  color: #7f8a99;
+  color: var(--muted);
 }
 #boot-retry:not([hidden]) {
   margin-top: 14px !important;
 }
-#boot .boot-sequence span,
-#boot.booting .boot-symbol img {
-  animation: none;
-}
 body.boot-visible:not(.portal-opening) #site {
   visibility: hidden;
 }
-/* Reserve the scrollbar through loading and entry so the frame never jumps
-   sideways when the portal releases document scrolling. */
 html {
   scrollbar-gutter: stable;
 }
@@ -177,119 +302,11 @@ body.portal-opening #site {
   visibility: visible;
   pointer-events: none;
 }
-@keyframes hourglass-turn {
-  0%,
-  22% {
-    transform: rotate(0);
-  }
-  68%,
-  100% {
-    transform: rotate(180deg);
-  }
-}
-body.motion-off .portal-hourglass svg {
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .portal-hourglass svg {
-    animation: none;
-  }
-}
-@media (max-width: 640px) {
-  #boot .boot-center {
-    width: calc(100vw - 40px);
-  }
-  #boot .entry-stage {
-    height: 86px;
-    margin: 10px 0;
-  }
-  #boot .language-entry {
-    gap: 8px;
-  }
-  #boot .enter-button {
-    padding: 0 10px;
-    height: 60px;
-    min-height: 60px;
-    font-size: 12px;
-  }
-  #boot .enter-button span {
-    font-size: 6px;
-    gap: 3px;
-  }
-  #boot .boot-rule {
-    inset: 24px 20px auto;
-  }
-  #boot .boot-symbol {
-    display: block;
-  }
-}
-@media (max-height: 660px) {
-  #boot .boot-center {
-    transform: none;
-  }
-  #boot .boot-sequence {
-    display: none;
-  }
-  #boot .boot-symbol {
-    margin-bottom: 4px;
-  }
-  #boot h1 {
-    margin: 8px 0;
-    font-size: 36px;
-  }
-  #boot .entry-stage {
-    height: 75px;
-    margin: 6px 0;
-  }
-  #boot .boot-foot {
-    display: none;
-  }
-  #boot .browser-notice {
-    margin-top: 4px;
-  }
-}
-#boot #boot-retry[hidden] {
-  display: none;
-}
-@media (max-width: 360px) {
-  #boot .enter-button {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 6px;
-  }
-  #boot .enter-button span {
-    width: 100%;
-    font-size: 7px;
-  }
-  #boot .enter-button svg {
-    margin-left: auto;
-  }
-}
-/* Structural paths and rail-mounted modules share the 2.5-second entry clock. */
-.assembly-frame {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 102;
-  pointer-events: none;
-  overflow: hidden;
-}
-.assembly-trace {
-  fill: none;
-  stroke: var(--secondary);
-  stroke-width: 0.75;
-  vector-effect: non-scaling-stroke;
-}
-.assembly-trace.major {
-  stroke: var(--accent);
-  stroke-width: 1.4;
-}
-.assembly-label {
-  fill: var(--secondary);
-  font: 8px var(--mono);
-  letter-spacing: 1.4px;
+/* The actual panels provide the transition geometry. No duplicate wireframe. */
+body.portal-opening .shell {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 body.portal-opening .transport {
   visibility: visible;
@@ -300,6 +317,297 @@ body.portal-opening :is(.masthead, .workspace, .hero, .chassis-bridge) {
 body.portal-opening .hero .hero-shutter {
   display: none;
 }
+body.portal-opening :is(.portal-body, .boot-center) {
+  isolation: auto;
+}
 .chrome-emblem canvas {
   transition: none;
+}
+/* Patina sits over every view but stays inside the one shared lens. */
+.crt-surface > .screen-patina {
+  z-index: 110;
+}
+#screen-noise {
+  opacity: 0.03;
+  mix-blend-mode: screen;
+}
+body.motion-off .loader-track i {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loader-track i {
+    animation: none;
+  }
+}
+@media (max-width: 760px) {
+  #boot .boot-center {
+    width: calc(100% - 64px);
+  }
+  .portal-body {
+    gap: 16px;
+    grid-template-columns: 1.2fr 1fr;
+  }
+  .portal-visual {
+    min-height: 270px;
+  }
+  .portal-visual-title {
+    left: 22px;
+    font-size: 6px;
+  }
+  .portal-visual-foot {
+    left: 22px;
+    font-size: 6px;
+    max-width: 125px;
+    line-height: 1.8;
+  }
+  #boot h1 {
+    font-size: 40px;
+  }
+  #boot .portal-copy > .micro {
+    font-size: 6px;
+  }
+}
+@media (max-width: 540px) {
+  #boot .boot-center {
+    width: calc(100% - 44px);
+  }
+  .portal-caption {
+    font-size: 6px;
+    letter-spacing: 0.3px;
+  }
+  .portal-body {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .portal-copy {
+    position: relative;
+    padding: 18px 0 20px;
+  }
+  #boot .boot-symbol.metal-logo {
+    position: absolute;
+    right: -6px;
+    top: 26px;
+    width: 104px;
+    height: 80px;
+    margin: 0;
+  }
+  #boot h1 {
+    font-size: 38px;
+    margin: 14px 0;
+  }
+  #boot .boot-note {
+    font-size: 8px;
+  }
+  .portal-visual {
+    height: 142px;
+    min-height: 0;
+    margin-bottom: 16px;
+  }
+  .portal-visual-title {
+    inset: 18px 20px auto;
+  }
+  .portal-visual-title b {
+    font-size: 36px;
+  }
+  .portal-visual-foot {
+    left: auto;
+    right: 20px;
+    bottom: 18px;
+    max-width: 100px;
+  }
+  #boot .entry-stage,
+  #boot .enter-button {
+    height: 56px;
+    min-height: 56px;
+  }
+  #boot .enter-button {
+    padding: 0 12px;
+    font-size: 11px;
+  }
+  #boot .enter-button span {
+    font-size: 6px;
+    gap: 3px;
+  }
+  #boot .enter-button span svg {
+    width: 12px;
+    height: 12px;
+  }
+  #boot .language-entry {
+    gap: 8px;
+  }
+  #boot .boot-rule {
+    inset: 24px 22px auto;
+    font-size: 6px;
+  }
+  #boot .boot-foot {
+    display: block;
+    left: 22px;
+    right: 22px;
+    font-size: 6px;
+    bottom: 24px;
+  }
+  #boot .boot-telemetry {
+    gap: 10px;
+  }
+  #boot #boot-status {
+    font-size: 6px;
+  }
+}
+@media (max-height: 640px) and (min-width: 541px) {
+  #boot .boot-center {
+    width: min(920px, calc(100% - 80px));
+  }
+  #boot .boot-symbol.metal-logo {
+    width: 92px;
+    height: 62px;
+    margin-bottom: 8px;
+  }
+  .portal-copy {
+    padding: 8px 0 14px;
+  }
+  .portal-visual {
+    min-height: 230px;
+  }
+  #boot h1 {
+    font-size: 40px;
+    margin: 12px 0;
+  }
+  #boot .boot-foot {
+    display: none;
+  }
+  #boot .boot-rule {
+    top: 18px;
+  }
+}
+@media (max-height: 680px) and (max-width: 540px) {
+  #boot .boot-rule,
+  #boot .boot-foot {
+    display: none;
+  }
+  .portal-visual {
+    height: 108px;
+  }
+}
+@media (max-width: 360px) {
+  #boot h1 {
+    font-size: 33px;
+  }
+  #boot .boot-symbol.metal-logo {
+    right: -4px;
+    width: 78px;
+    height: 70px;
+  }
+  #boot .enter-button {
+    padding: 0 10px;
+  }
+  #boot .enter-button span {
+    font-size: 0;
+  }
+  #boot .enter-button span svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+@keyframes portal-load-window {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes portal-load-copy {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+body.boot-visible:not(.portal-opening):not(.motion-off) #boot .portal-caption {
+  animation: portal-load-window 0.55s cubic-bezier(0.16, 0.82, 0.2, 1) both;
+}
+body.boot-visible:not(.portal-opening):not(.motion-off)
+  #boot
+  .portal-copy
+  > :not(.boot-symbol) {
+  animation: portal-load-copy 0.7s 0.12s cubic-bezier(0.16, 0.82, 0.2, 1) both;
+}
+body.boot-visible:not(.portal-opening):not(.motion-off) #boot .portal-visual {
+  animation: portal-reveal-window 0.95s 0.08s cubic-bezier(0.7, 0, 0.2, 1) both;
+}
+body.boot-visible:not(.portal-opening):not(.motion-off) #boot .portal-controls {
+  animation: portal-load-copy 0.6s 0.25s cubic-bezier(0.16, 0.82, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.boot-visible
+    #boot
+    :is(
+      .portal-caption,
+      .portal-copy > :not(.boot-symbol),
+      .portal-visual,
+      .portal-controls
+    ) {
+    animation: none !important;
+  }
+}
+
+@keyframes portal-reveal-window {
+  from {
+    clip-path: polygon(24px 0, 100% 0, 100% 0, 100% 0, 0 0, 0 0);
+  }
+  to {
+    clip-path: polygon(
+      24px 0,
+      100% 0,
+      100% calc(100% - 24px),
+      calc(100% - 24px) 100%,
+      0 100%,
+      0 24px
+    );
+  }
+}
+@media (max-height: 460px) and (min-width: 541px) {
+  #boot .boot-rule,
+  #boot .boot-foot {
+    display: none;
+  }
+  #boot .portal-caption {
+    padding: 7px 0;
+  }
+  #boot .portal-copy {
+    padding: 6px 0;
+  }
+  #boot .boot-symbol.metal-logo {
+    height: 44px;
+    width: 80px;
+    margin-bottom: 6px;
+  }
+  #boot h1 {
+    font-size: 32px;
+    margin: 8px 0;
+  }
+  #boot .boot-note {
+    font-size: 8px;
+  }
+  #boot .portal-visual {
+    min-height: 176px;
+    margin-bottom: 10px;
+  }
+  #boot .portal-controls {
+    padding-top: 10px;
+  }
+  #boot .entry-stage {
+    margin-bottom: 10px;
+  }
+  #boot .entry-stage,
+  #boot .enter-button {
+    height: 48px;
+    min-height: 48px;
+  }
+  #boot .boot-telemetry {
+    min-height: 16px;
+  }
 }

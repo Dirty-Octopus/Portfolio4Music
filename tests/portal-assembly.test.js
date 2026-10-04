@@ -51,6 +51,9 @@ function setup(t) {
   const nodes = Object.fromEntries(
     [
       ".boot-face",
+      ".portal-visual",
+      ".portal-caption",
+      ".portal-controls",
       ".boot-center",
       ".boot-symbol",
       ".boot-progress",

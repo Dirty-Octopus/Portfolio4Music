@@ -73,9 +73,8 @@ export function initCrtLens(t) {
     pending = 0;
   const pointers = new Map();
   const active = () => enabled && !document.fullscreenElement;
-  // The portal lives outside the filtered viewport, so its input is already aligned.
-  const inputActive = () =>
-    active() && !document.body.classList.contains("boot-visible");
+  // Portal, chrome object and archive share the same optical surface.
+  const inputActive = active;
   const defaultEnabled = () =>
     !matchMedia("(max-width: 640px), (hover: none) and (pointer: coarse)")
       .matches;

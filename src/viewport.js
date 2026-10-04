@@ -4,7 +4,7 @@ export function initViewportSurface() {
   const surface = document.createElement("div");
   surface.className = "crt-surface";
   const children = [...document.body.children].filter(
-    (node) => node.tagName !== "SCRIPT" && node.id !== "boot",
+    (node) => node.tagName !== "SCRIPT",
   );
   surface.append(...children);
   document.body.append(surface);

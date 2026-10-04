@@ -1,7 +1,7 @@
 /** A single continuous height field, rendered as topographic isobands. */
 export function initPortalContour({ motionAllowed = () => true, engine } = {}) {
   const boot = document.querySelector("#boot");
-  const face = boot?.querySelector(".boot-face");
+  const face = boot?.querySelector(".portal-visual");
   if (!face) return null;
 
   const plane = document.createElement("div");
@@ -169,26 +169,10 @@ export function initPortalContour({ motionAllowed = () => true, engine } = {}) {
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Eight-pixel cells keep tight hilltops smooth. Only the visible diagonal
-    // band is traced, so finer sampling still uses fewer contour cells overall.
+    // Eight-pixel cells keep tight hilltops smooth within the compact window.
     cols = Math.min(220, Math.max(24, Math.ceil(width / 8)));
     rows = Math.min(160, Math.max(24, Math.ceil(height / 8)));
-    const mobile = matchMedia("(max-width: 640px)").matches;
-    columnRanges = Array.from({ length: rows }, (_, row) => {
-      const topLeft = mobile
-        ? 0.91 * (1 - row / rows)
-        : 0.65 - (0.4 * row) / rows;
-      const bottomLeft = mobile
-        ? 0.91 * (1 - (row + 1) / rows)
-        : 0.65 - (0.4 * (row + 1)) / rows;
-      return [
-        Math.max(0, Math.floor(bottomLeft * cols) - 1),
-        Math.min(
-          cols,
-          Math.ceil((topLeft + (mobile ? 0.45 : 0.25)) * cols) + 1,
-        ),
-      ];
-    });
+    columnRanges = Array.from({ length: rows }, () => [0, cols]);
     values = new Float32Array((cols + 1) * (rows + 1));
     update();
   }
@@ -208,10 +192,7 @@ export function initPortalContour({ motionAllowed = () => true, engine } = {}) {
     const rect = face.getBoundingClientRect();
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
-    const mobile = matchMedia("(max-width: 640px)").matches;
-    const left = mobile ? 0.91 * (1 - y) : 0.65 - 0.4 * y;
-    const right = left + (mobile ? 0.45 : 0.25);
-    if (x < left || x > right || y < 0 || y > 1) return;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
     engine
       ?.unlock()
       .then(() => engine.sfx("water"))

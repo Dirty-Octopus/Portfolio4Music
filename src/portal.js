@@ -1,11 +1,11 @@
 import { runAssembly } from "./portal-assembly.js";
-const ease = "cubic-bezier(.22,.7,.18,1)";
-const symbols = ".:+*#%/01[]";
+import { EASE } from "./motion.js";
+const ease = EASE.glide;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const animate = (element, frames, options) => {
   if (!element) return Promise.resolve();
   return element
-    .animate(frames, { fill: "forwards", easing: ease, ...options })
+    .animate(frames, { fill: "both", easing: ease, ...options })
     .finished.catch(() => {});
 };
 
@@ -13,9 +13,7 @@ export function initPortal({ engine, motionAllowed, getLogo = () => null }) {
   const boot = document.querySelector("#boot");
   const entry = boot.querySelector(".language-entry");
   const buttons = [...entry.querySelectorAll("button")];
-  const hourglass = boot.querySelector(".portal-hourglass");
-  const canvas = boot.querySelector(".entry-ascii");
-  const ctx = canvas.getContext("2d");
+  const loader = boot.querySelector(".portal-loader");
   const created = performance.now();
   let ready = false,
     assembling = false,
@@ -47,100 +45,40 @@ export function initPortal({ engine, motionAllowed, getLogo = () => null }) {
   boot.addEventListener("pointerdown", unlock);
   boot.addEventListener("keydown", unlock);
 
-  function assembleAscii() {
-    const width = canvas.clientWidth,
-      height = canvas.clientHeight;
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const ink =
-      getComputedStyle(boot).getPropertyValue("--accent").trim() || "#fff100";
-    const particles = [];
-    const columns = Math.floor(width / 10);
-    for (let row = 0; row < 6; row++)
-      for (let col = 0; col < columns; col++) {
-        if (col === Math.floor(columns / 2)) continue;
-        const seed = (col * 23 + row * 17) % 41;
-        const waist = Math.abs(row - 2.5) / 2.5;
-        particles.push({
-          x: width / 2 + (col / columns - 0.5) * (12 + waist * 38),
-          y: height / 2 + (row - 2.5) * 8,
-          tx: ((col + 0.5) * width) / columns,
-          ty: height / 2 + (row - 2.5) * 9,
-          seed,
-        });
-      }
-    const start = performance.now();
-    return new Promise((resolve) => {
-      function draw(now) {
-        const elapsed = now - start;
-        const p = Math.min(1, Math.max(0, (elapsed - 180) / 880));
-        const travel = 1 - (1 - p) ** 3;
-        ctx.clearRect(0, 0, width, height);
-        ctx.font = "9px 'IBM Plex Mono', monospace";
-        ctx.fillStyle = ink;
-        for (const dot of particles) {
-          const fade =
-            Math.min(1, elapsed / 140) *
-            Math.max(0, 1 - Math.max(0, elapsed - 840 - dot.seed * 4) / 420);
-          ctx.globalAlpha = fade * (0.4 + dot.seed / 68);
-          const jitter =
-            Math.sin(elapsed * 0.007 + dot.seed) * (1 - travel) * 7;
-          ctx.fillText(
-            symbols[(dot.seed + Math.floor(elapsed / 58)) % symbols.length],
-            dot.x + (dot.tx - dot.x) * travel,
-            dot.y + (dot.ty - dot.y) * travel + jitter,
-          );
-        }
-        ctx.globalAlpha = 1;
-        if (elapsed < 1440) requestAnimationFrame(draw);
-        else {
-          ctx.clearRect(0, 0, width, height);
-          resolve();
-        }
-      }
-      requestAnimationFrame(draw);
-    });
-  }
-
   async function reveal() {
     if (ready || assembling) return;
     assembling = true;
     // Give a cached load a readable, brief first pose as well.
-    await wait(Math.max(0, 600 - (performance.now() - created)));
+    await wait(Math.max(0, 800 - (performance.now() - created)));
     boot.classList.add("assets-ready");
     if (motionAllowed()) {
       playReadySound();
       entry.classList.add("is-ready");
-      const ascii = assembleAscii();
       await Promise.all([
-        ascii,
         animate(
-          hourglass,
+          loader,
           [
-            { opacity: 1, transform: "scale(1)" },
-            { opacity: 0, transform: "scale(.65)" },
+            {
+              opacity: 1,
+              transform: "translateX(0)",
+              clipPath: "inset(0 0 0 0)",
+            },
+            {
+              opacity: 0,
+              transform: "translateX(18px)",
+              clipPath: "inset(0 0 0 100%)",
+            },
           ],
-          { duration: 330 },
+          { duration: 280, easing: EASE.close },
         ),
         ...buttons.map((button, i) =>
           animate(
             button,
             [
-              {
-                opacity: 0,
-                transform: `translateX(${i ? -46 : 46}px) scaleX(.7)`,
-                clipPath: "inset(0 49%)",
-              },
-              { opacity: 0.85, offset: 0.55, clipPath: "inset(0 12%)" },
-              {
-                opacity: 1,
-                transform: "translateX(0) scaleX(1)",
-                clipPath: "inset(0 0%)",
-              },
+              { transform: "translateX(-18px)", clipPath: "inset(0 100% 0 0)" },
+              { transform: "translateX(0)", clipPath: "inset(0 0 0 0)" },
             ],
-            { duration: 860, delay: 540 + i * 70 },
+            { duration: 660, delay: 180 + i * 100, easing: EASE.machine },
           ),
         ),
       ]);
@@ -152,7 +90,7 @@ export function initPortal({ engine, motionAllowed, getLogo = () => null }) {
       entry.classList.add("is-ready");
       playReadySound();
     }
-    hourglass.hidden = true;
+    loader.hidden = true;
     entry.inert = false;
     buttons.forEach((button) => {
       button.disabled = false;

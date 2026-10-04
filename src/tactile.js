@@ -432,9 +432,17 @@ function initRotary(engine, motionAllowed) {
 function initNoise(motionAllowed) {
   const canvas = document.querySelector("#screen-noise");
   const context = canvas.getContext("2d", { alpha: false });
-  canvas.width = 240;
-  canvas.height = 150;
-  const noise = context.createImageData(canvas.width, canvas.height);
+  // Fine phosphor grain remains fine on large displays, instead of scaling
+  // a tiny 240px texture into visible blocks across the portal.
+  let noise;
+  function resizeNoise() {
+    const resolution = Math.min(0.5, 960 / innerWidth, 600 / innerHeight);
+    canvas.width = Math.ceil(innerWidth * resolution);
+    canvas.height = Math.ceil(innerHeight * resolution);
+    noise = context.createImageData(canvas.width, canvas.height);
+  }
+  resizeNoise();
+  window.addEventListener("resize", resizeNoise);
   function draw() {
     if (!document.hidden && motionAllowed()) {
       const pixels = noise.data;

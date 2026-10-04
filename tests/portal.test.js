@@ -54,22 +54,15 @@ function fixture(
   });
   entry.inert = true;
   entry.querySelectorAll = () => buttons;
-  const hourglass = node();
+  const loader = node();
   const notice = node();
   const logo = node();
   const face = node();
   const center = node();
   center.children = [logo, node(), node()];
-  const context = { setTransform() {}, clearRect() {}, fillText() {} };
-  const canvas = {
-    clientWidth: 500,
-    clientHeight: 96,
-    getContext: () => context,
-  };
   const map = {
     ".language-entry": entry,
-    ".portal-hourglass": hourglass,
-    ".entry-ascii": canvas,
+    ".portal-loader": loader,
     ".browser-notice": notice,
     ".boot-face": face,
     ".boot-symbol": logo,
@@ -135,7 +128,7 @@ function fixture(
     boot,
     entry,
     buttons,
-    hourglass,
+    loader,
     notice,
     site,
     body,
@@ -147,7 +140,7 @@ function fixture(
   };
 }
 
-test("language choices stay disabled until the entire ASCII assembly finishes", async (t) => {
+test("language choices stay disabled until the entire panel reveal finishes", async (t) => {
   const f = fixture(t);
   assert.equal(f.portal.ready, false);
   assert.equal(f.entry.inert, true);
@@ -157,7 +150,7 @@ test("language choices stay disabled until the entire ASCII assembly finishes", 
   assert.equal(f.portal.ready, false);
   assert.ok(f.buttons.every((button) => button.disabled));
   // Finish the visual animation, while the final button is still travelling.
-  f.frames.splice(0).forEach((draw) => draw(2000));
+
   const finalButton = f.animations.pop();
   f.animations.splice(0).forEach((finish) => finish());
   await Promise.resolve();
@@ -168,7 +161,7 @@ test("language choices stay disabled until the entire ASCII assembly finishes", 
   assert.equal(f.portal.ready, true);
   assert.ok(f.buttons.every((button) => !button.disabled));
   assert.equal(f.entry.inert, false);
-  assert.equal(f.hourglass.hidden, true);
+  assert.equal(f.loader.hidden, true);
 });
 
 test("reduced-motion entry clears portal isolation without waiting for animation callbacks", async (t) => {

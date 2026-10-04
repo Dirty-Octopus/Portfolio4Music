@@ -1,6 +1,5 @@
 import "./metal-logo.css";
 import outline from "./metal-logo-geometry.json";
-import { crtViewportWidth, lensDisplayPoint } from "./crt.js";
 
 // One transparent renderer and one physical object survive the entire portal handoff.
 export async function initMetalLogos({
@@ -27,25 +26,11 @@ export async function initMetalLogos({
   const layer = document.createElement("div");
   layer.className = "chrome-emblem";
   layer.setAttribute("aria-hidden", "true");
-  document.body.append(layer);
+  document.querySelector(".crt-surface").append(layer);
 
   function hostRect(host) {
-    const box = host.getBoundingClientRect();
-    let { left, top, width, height } = box;
-    if (
-      host === headerHost &&
-      document.documentElement.classList.contains("crt-mode")
-    ) {
-      const center = lensDisplayPoint(
-        left + width / 2,
-        top + height / 2,
-        crtViewportWidth(),
-        innerHeight,
-      );
-      // The logo itself remains optically sharp; the carrier obeys the CRT's position.
-      left = center.x - width / 2;
-      top = center.y - height / 2;
-    }
+    // The glyphs are refracted by the same parent filter as their host.
+    const { left, top, width, height } = host.getBoundingClientRect();
     return { left, top, width, height };
   }
   function currentRect() {
