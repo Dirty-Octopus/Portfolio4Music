@@ -10,6 +10,19 @@
     />
     <title>OCTOPUS / Music & Sound Design</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <style>
+      /* Paint the portal before modules, saved settings, or restored scroll run. */
+      body.boot-visible {
+        overflow: hidden;
+      }
+      body.boot-visible:not(.portal-opening) #site {
+        visibility: hidden;
+      }
+      .language-entry:not(.is-ready) {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body class="boot-visible dock-collapsed" data-treatment="halftone">
     <svg
@@ -94,15 +107,17 @@
     >
       <div class="boot-face">
         <div class="boot-grid"></div>
-        <div class="crt-power" aria-hidden="true"><i></i></div>
-        <div class="boot-circuit" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="boot-rule">
           <span>DIRTY OCTOPUS</span><span>INTERACTIVE AUDIO PORTFOLIO</span>
         </div>
         <div class="boot-center">
-          <div class="boot-symbol">
+          <button
+            type="button"
+            class="boot-symbol"
+            aria-label="旋转金属标志 / Spin the metal logo"
+          >
             <img src="./art/dirty-octopus-logo.jpg" alt="Dirty Octopus" />
-          </div>
+          </button>
           <p class="micro">DIRTY OCTOPUS / AUDIO EXPLORATIONS</p>
           <h1>DIRTY OCTOPUS<br /><b>SONIC ARCHIVE.</b></h1>
           <p class="boot-note">音乐创作 / 影视配乐 / 声音设计</p>
@@ -110,21 +125,40 @@
             <span>01. IDENTITY</span><span>02. SOUND</span
             ><span>03. EXPERIENCE</span>
           </div>
-          <div
-            class="language-entry"
-            role="group"
-            aria-label="选择语言 / Choose language"
-          >
-            <button id="enter" class="enter-button" data-enter="zh">
-              中文版 <span>进入作品集 <i data-icon="arrow-up-right"></i></span>
-            </button>
-            <button id="enter-en" class="enter-button" data-enter="en">
-              ENGLISH
-              <span>ENTER ARCHIVE <i data-icon="arrow-up-right"></i></span>
-            </button>
-          </div>
-          <div class="boot-loader" aria-hidden="true">
-            <i></i><i></i><i></i><i></i><i></i>
+          <div class="entry-stage">
+            <div class="portal-hourglass" aria-hidden="true">
+              <svg viewBox="0 0 40 52" fill="none">
+                <path
+                  d="M7 4h26M7 48h26M10 5c0 12 2 13 10 21-8 8-10 9-10 21M30 5c0 12-2 13-10 21 8 8 10 9 10 21"
+                />
+                <path
+                  class="hourglass-sand"
+                  d="m13 11 7 10 7-10zm0 31h14l-7-10z"
+                />
+              </svg>
+              <span>BUFFERING</span>
+            </div>
+            <canvas class="entry-ascii" aria-hidden="true"></canvas>
+            <div
+              class="language-entry"
+              role="group"
+              aria-label="选择语言 / Choose language"
+              inert
+            >
+              <button id="enter" class="enter-button" data-enter="zh" disabled>
+                中文版
+                <span>进入作品集 <i data-icon="arrow-up-right"></i></span>
+              </button>
+              <button
+                id="enter-en"
+                class="enter-button"
+                data-enter="en"
+                disabled
+              >
+                ENGLISH
+                <span>ENTER ARCHIVE <i data-icon="arrow-up-right"></i></span>
+              </button>
+            </div>
           </div>
           <div
             class="boot-progress"
@@ -145,6 +179,11 @@
           <button id="boot-retry" class="enter-button" hidden>
             重新加载 / RETRY
           </button>
+          <p class="browser-notice" hidden>
+            为获得更好的体验，请使用 Chrome 或 Chromium 内核浏览器。<span
+              >BEST EXPERIENCED IN CHROME / CHROMIUM.</span
+            >
+          </p>
         </div>
         <span class="boot-foot micro">SOUND IS A PLACE. STEP INSIDE.</span>
       </div>
@@ -162,18 +201,24 @@
           <i></i><i></i><i></i>
         </div>
         <header class="masthead">
-          <a href="#" class="brand" aria-label="Dirty Octopus 首页"
-            ><div class="identity-mark">
+          <div class="brand" role="group" aria-label="Dirty Octopus 首页">
+            <button
+              type="button"
+              class="identity-mark"
+              aria-label="旋转金属标志 / Spin the metal logo"
+            >
               <img
                 src="./art/dirty-octopus-logo.jpg"
                 alt="Dirty Octopus logo"
               />
-            </div>
-            <span class="brand-name"
-              ><strong>DIRTY<br />OCTOPUS<span>®</span></strong
-              ><small>COMPOSITION / SOUND DESIGN</small></span
-            ></a
-          >
+            </button>
+            <a href="#" class="brand-home">
+              <span class="brand-name"
+                ><strong>DIRTY<br />OCTOPUS<span>®</span></strong
+                ><small>COMPOSITION / SOUND DESIGN</small></span
+              ></a
+            >
+          </div>
           <div class="navigation-block">
             <div class="navigation-caption">
               <span>INDEPENDENT AUDIO EXPLORATIONS</span

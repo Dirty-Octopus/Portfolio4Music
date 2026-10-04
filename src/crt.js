@@ -67,6 +67,9 @@ export function initCrtLens(t) {
     pending = 0;
   const pointers = new Map();
   const active = () => enabled && !document.fullscreenElement;
+  // The portal lives outside the filtered viewport, so its input is already aligned.
+  const inputActive = () =>
+    active() && !document.body.classList.contains("boot-visible");
   const defaultEnabled = () =>
     !matchMedia("(max-width: 640px), (hover: none) and (pointer: coarse)")
       .matches;
@@ -213,7 +216,7 @@ export function initCrtLens(t) {
     window.addEventListener(
       type,
       (event) => {
-        if (!active() || !event.isTrusted) return;
+        if (!inputActive() || !event.isTrusted) return;
         const point = mapped(event);
         const held = pointers.get(event.pointerId);
         const captured = held?.target.hasPointerCapture?.(event.pointerId);
@@ -247,7 +250,7 @@ export function initCrtLens(t) {
     window.addEventListener(
       type,
       (event) => {
-        if (active() && event.isTrusted) event.stopImmediatePropagation();
+        if (inputActive() && event.isTrusted) event.stopImmediatePropagation();
       },
       true,
     );
@@ -256,7 +259,7 @@ export function initCrtLens(t) {
     "click",
     (event) => {
       // Keyboard activation has no visual coordinates and already targets its focused control.
-      if (!active() || !event.isTrusted || event.detail === 0) return;
+      if (!inputActive() || !event.isTrusted || event.detail === 0) return;
       const point = mapped(event);
       const target = targetAt(point);
       event.preventDefault();

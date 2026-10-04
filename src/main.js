@@ -8,7 +8,12 @@ import "./experience.css";
 import "./refinements.css";
 import "./console.css";
 import "./contact.css";
-import { AudioAssets, openBootValve } from "./loading.js";
+import { AudioAssets } from "./loading.js";
+import "./portal-contour.css";
+import "./portal.css";
+import { initPortal } from "./portal.js";
+import { initPortalContour } from "./portal-contour.js";
+import { initMetalLogos } from "./metal-logo.js";
 import { initCrtLens } from "./crt.js";
 import { initBackground } from "./background.js";
 import { initViewportSurface } from "./viewport.js";
@@ -147,8 +152,9 @@ const soundPaths = Object.fromEntries(
   ].map((name) => [name, `media/${name}.wav`]),
 );
 let assetsReady,
-  opening = false,
-  entryTime = 0;
+  portal,
+  logosReady,
+  opening = false;
 video.src = asset(manifest.videos[0].src);
 video.poster = asset(manifest.videos[0].poster);
 $("#video-duration").textContent = formatTime(manifest.videos[0].duration);
@@ -169,7 +175,11 @@ function labelFor(key) {
 function renderTracks() {
   filtered = manifest.tracks.filter(
     (t) =>
-      (category === "all" ? t.category !== "sfx" && t.category !== "sound-design" : category === "sound-design" ? t.category === "sfx" || t.category === "sound-design" : t.category === category) &&
+      (category === "all"
+        ? t.category !== "sfx" && t.category !== "sound-design"
+        : category === "sound-design"
+          ? t.category === "sfx" || t.category === "sound-design"
+          : t.category === category) &&
       `${t.title} ${trackTitle(t)} ${t.filename}`.toLowerCase().includes(query),
   );
   const cat = categories.find((c) => c[0] === category);
@@ -287,6 +297,7 @@ async function startAudioLoading() {
       await Promise.all([
         engine.scrubber.prepare(),
         document.fonts.ready,
+        logosReady,
         ...[...document.querySelectorAll("img")].map((image) =>
           image.decode().catch(() => {}),
         ),
@@ -296,7 +307,7 @@ async function startAudioLoading() {
       $(".boot-progress").style.setProperty("--loaded", "100%");
       $(".boot-progress").setAttribute("aria-valuenow", "100");
       $("#boot-percent").value = "100%";
-      $("#boot").classList.add("assets-ready");
+      await portal.reveal();
       $("#boot-status").textContent = t(
         "声音已就绪 / 选择语言进入",
         "AUDIO READY / SELECT LANGUAGE",
@@ -313,17 +324,15 @@ async function startAudioLoading() {
       return false;
     }
   })();
-  if ((await assetsReady) && entered) finishEntry();
+  await assetsReady;
 }
 async function enterExperience(language) {
-  if (entered) return;
+  if (entered || !portal.ready) return;
   entered = true;
-  entryTime = performance.now();
   setLanguage(language);
   $$("[data-enter]").forEach((button) => {
     button.disabled = true;
   });
-  $("#boot").classList.add("booting");
   try {
     await engine.unlock();
   } catch {
@@ -339,32 +348,14 @@ async function enterExperience(language) {
 async function finishEntry() {
   if (opening) return;
   opening = true;
-  engine.sfx("bootupcrt");
+  engine.sfx("notification");
   await engine.setBgmEnabled(engine.bgmEnabled);
   $("#boot-status").textContent = t(
     "连接完成 / 声音已就绪",
     "CONNECTED / AUDIO READY",
   );
-  await new Promise((resolve) =>
-    setTimeout(
-      resolve,
-      motionAllowed()
-        ? Math.max(1050, 3200 - (performance.now() - entryTime))
-        : 0,
-    ),
-  );
-  $("#site").classList.add("site-enter");
-  if (motionAllowed()) engine.sfx("flicker");
-  await openBootValve($("#boot"), motionAllowed());
-  $("#boot").hidden = true;
-  $("#boot").style.display = "none";
-  document.body.classList.remove("boot-visible");
-  $("#site").inert = false;
+  await portal.enter();
   $("[data-nav=overview]").focus({ preventScroll: true });
-  setTimeout(
-    () => $("#site").classList.remove("site-enter"),
-    motionAllowed() ? 1800 : 0,
-  );
 }
 $("#boot-retry").addEventListener("click", () => {
   engine.unlock();
@@ -378,7 +369,7 @@ document.addEventListener("keydown", (event) => {
   if (!entered || !$("#boot").hidden) {
     if (event.key === "Tab") {
       event.preventDefault();
-      const buttons = $$("[data-enter],#boot-retry").filter(
+      const buttons = $$(".boot-symbol,[data-enter],#boot-retry").filter(
         (button) => !button.disabled && !button.hidden,
       );
       const index = buttons.indexOf(document.activeElement);
@@ -800,6 +791,9 @@ initTactileExperience({ engine, motionAllowed });
 initViewportSurface();
 initCrtLens(t);
 initBackground(motionAllowed);
+portal = initPortal({ engine, motionAllowed });
+initPortalContour({ motionAllowed });
+logosReady = initMetalLogos({ engine, motionAllowed });
 document.addEventListener("settingsreset", async () => {
   engine.sfxEnabled = true;
   engine.bgmEnabled = true;

@@ -4,7 +4,7 @@ export function initViewportSurface() {
   const surface = document.createElement("div");
   surface.className = "crt-surface";
   const children = [...document.body.children].filter(
-    (node) => node.tagName !== "SCRIPT",
+    (node) => node.tagName !== "SCRIPT" && node.id !== "boot",
   );
   surface.append(...children);
   document.body.append(surface);
@@ -16,7 +16,7 @@ export function initViewportSurface() {
     document.body.style.height = `${site.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)}px`;
   }
   function scroll() {
-    site.style.top = `${-scrollY}px`;
+    site.style.top = `${document.body.classList.contains("boot-visible") ? 0 : -scrollY}px`;
   }
   let pending = 0;
   function schedule() {
@@ -29,6 +29,7 @@ export function initViewportSurface() {
   new ResizeObserver(schedule).observe(site);
   window.addEventListener("resize", schedule);
   window.addEventListener("scroll", scroll, { passive: true });
+  document.addEventListener("portalentered", scroll);
   site.addEventListener("focusin", (event) => {
     if (!event.target.matches(":focus-visible")) return;
     const bounds = event.target.getBoundingClientRect();

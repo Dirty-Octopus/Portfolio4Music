@@ -1,0 +1,263 @@
+/* Portal owns its viewport; saved CRT and scrolling affect only the archive. */
+#boot {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: transparent;
+  isolation: isolate;
+}
+#boot[hidden] {
+  display: none !important;
+}
+#boot .boot-face {
+  background: var(--panel-low);
+}
+#boot .boot-grid {
+  z-index: 0;
+  opacity: 0.04;
+}
+#boot .boot-center {
+  width: min(580px, calc(100vw - 64px));
+  position: relative;
+  z-index: 2;
+}
+#boot .boot-rule,
+#boot .boot-foot {
+  z-index: 2;
+}
+#boot .boot-symbol {
+  transform-origin: top left;
+}
+#boot .entry-stage {
+  position: relative;
+  width: 100%;
+  height: 96px;
+  margin: 15px 0 13px;
+}
+#boot .portal-hourglass {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  color: var(--accent);
+}
+#boot .portal-hourglass[hidden] {
+  display: none;
+}
+.portal-hourglass svg {
+  width: 28px;
+  height: 38px;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  animation: hourglass-turn 2.6s cubic-bezier(0.6, 0.05, 0.25, 1) infinite;
+}
+.portal-hourglass .hourglass-sand {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.65;
+}
+.portal-hourglass span {
+  font: 8px var(--mono);
+  letter-spacing: 2px;
+}
+#boot .entry-ascii {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+#boot .language-entry {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  min-height: 0;
+  align-items: center;
+}
+#boot .language-entry:not(.is-ready) {
+  visibility: hidden;
+  pointer-events: none;
+}
+#boot .enter-button {
+  position: relative;
+  height: 62px;
+  min-height: 62px;
+  margin: 0;
+  padding: 0 18px;
+  background: #080a0e;
+  color: #f0f3f6;
+  border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  border-left: 3px solid var(--accent);
+  box-shadow: none;
+  clip-path: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 0.25s,
+    color 0.25s,
+    border-color 0.25s;
+}
+#boot .enter-button::before,
+#boot .enter-button::after {
+  display: none;
+}
+#boot .enter-button span {
+  color: #a3a9b3;
+  font: 8px var(--mono);
+}
+#boot .enter-button svg {
+  transition: transform 0.35s cubic-bezier(0.22, 0.7, 0.18, 1);
+}
+#boot .enter-button:enabled:is(:hover, :focus-visible) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  outline-offset: 5px;
+}
+#boot .enter-button:enabled:is(:hover, :focus-visible) span {
+  color: var(--accent-ink);
+}
+#boot .enter-button:enabled:is(:hover, :focus-visible) svg {
+  transform: translate(3px, -3px);
+}
+#boot .enter-button:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+#boot .boot-progress {
+  height: 3px;
+  margin: 0 0 12px;
+  background: #ffffff20;
+  clip-path: none;
+}
+#boot .boot-progress i {
+  transition: width 0.22s ease-out;
+}
+#boot .boot-telemetry {
+  min-height: 26px;
+}
+#boot .browser-notice {
+  font: 10px/1.7 var(--mono);
+  color: #aeb9c7;
+  max-width: 440px;
+  margin: 13px 0 0;
+}
+#boot .browser-notice[hidden] {
+  display: none;
+}
+#boot .browser-notice span {
+  display: block;
+  font-size: 8px;
+  color: #7f8a99;
+}
+#boot-retry:not([hidden]) {
+  margin-top: 14px !important;
+}
+#boot .boot-sequence span,
+#boot.booting .boot-symbol img {
+  animation: none;
+}
+body.boot-visible:not(.portal-opening) #site {
+  visibility: hidden;
+}
+body.portal-opening #site {
+  visibility: visible;
+  pointer-events: none;
+}
+@keyframes hourglass-turn {
+  0%,
+  22% {
+    transform: rotate(0);
+  }
+  68%,
+  100% {
+    transform: rotate(180deg);
+  }
+}
+body.motion-off .portal-hourglass svg {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-hourglass svg {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  #boot .boot-center {
+    width: calc(100vw - 40px);
+  }
+  #boot .entry-stage {
+    height: 86px;
+    margin: 10px 0;
+  }
+  #boot .language-entry {
+    gap: 8px;
+  }
+  #boot .enter-button {
+    padding: 0 10px;
+    height: 60px;
+    min-height: 60px;
+    font-size: 12px;
+  }
+  #boot .enter-button span {
+    font-size: 6px;
+    gap: 3px;
+  }
+  #boot .boot-rule {
+    inset: 24px 20px auto;
+  }
+  #boot .boot-symbol {
+    display: block;
+  }
+}
+@media (max-height: 660px) {
+  #boot .boot-center {
+    transform: none;
+  }
+  #boot .boot-sequence {
+    display: none;
+  }
+  #boot .boot-symbol {
+    margin-bottom: 4px;
+  }
+  #boot h1 {
+    margin: 8px 0;
+    font-size: 36px;
+  }
+  #boot .entry-stage {
+    height: 75px;
+    margin: 6px 0;
+  }
+  #boot .boot-foot {
+    display: none;
+  }
+  #boot .browser-notice {
+    margin-top: 4px;
+  }
+}
+#boot #boot-retry[hidden] {
+  display: none;
+}
+@media (max-width: 360px) {
+  #boot .enter-button {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+  }
+  #boot .enter-button span {
+    width: 100%;
+    font-size: 7px;
+  }
+  #boot .enter-button svg {
+    margin-left: auto;
+  }
+}

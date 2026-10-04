@@ -683,27 +683,6 @@ body[data-treatment="halftone"] #track-list .track .ascii-scramble::after {
     opacity: 0.8;
   }
 }
-.boot-leaf {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-  pointer-events: none;
-}
-.boot-leaf-left {
-  clip-path: polygon(0 0, 62% 0, 38% 100%, 0 100%);
-}
-.boot-leaf-right {
-  clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%);
-}
-.boot-leaf .boot-face {
-  visibility: visible !important;
-}
-.boot-leaf .crt-power {
-  display: none;
-}
-.valve-open .boot-leaf * {
-  animation-play-state: paused !important;
-}
 #boot-retry[hidden] {
   display: none;
 }
