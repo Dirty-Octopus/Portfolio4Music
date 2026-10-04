@@ -1,4 +1,5 @@
 /** One clipped surface grows out of the trigger; the original icon travels with it. */
+import { EASE, MOTION } from "./motion.js";
 export function initSettings({ motionAllowed, onOpen }) {
   const dialog = document.querySelector("#system-dialog");
   const trigger = document.querySelector("#system-open");
@@ -79,18 +80,16 @@ export function initSettings({ motionAllowed, onOpen }) {
     const iconTo = opening ? { left: "25px", top: "17px" } : iconOrigin;
     Object.assign(emblem.style, iconTo);
     if (motionAllowed()) {
-      const duration = opening ? 780 : 620;
+      const duration = opening ? MOTION.expand : 360;
       animations = [
         dialog.animate([geometry(from), geometry(to)], {
           duration,
-          easing: opening
-            ? "cubic-bezier(.22,.8,.14,1)"
-            : "cubic-bezier(.6,.04,.3,1)",
+          easing: opening ? EASE.glide : EASE.close,
           fill: "both",
         }),
         emblem.animate([iconFrom, iconTo], {
           duration,
-          easing: "cubic-bezier(.22,.7,.2,1)",
+          easing: EASE.glide,
           fill: "both",
         }),
         content.animate(
@@ -102,10 +101,10 @@ export function initSettings({ motionAllowed, onOpen }) {
             },
           ],
           {
-            duration: opening ? 430 : 170,
-            delay: opening ? 250 : 0,
+            duration: opening ? MOTION.reveal : MOTION.micro,
+            delay: opening ? 140 : 0,
             fill: "both",
-            easing: "ease-out",
+            easing: EASE.glide,
           },
         ),
         backdrop.animate(

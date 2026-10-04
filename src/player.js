@@ -1,4 +1,4 @@
-/** A single content-playback owner. UI SFX are non-stacking; intro cues retain their tails.
+/** A single content-playback owner. UI SFX are polyphonic; every trigger retains its tail.
  * Gain envelopes remove transport discontinuities without altering source files.
  * Commands are serialized, superseded requests cannot start stale media.
  */
@@ -41,6 +41,8 @@ export class PlaybackEngine {
     this.cueVoice = null;
     this.accentVoice = null;
     this.sfxDecodes = {};
+    this.sfxVoices = new Set();
+    this.sfxGeneration = 0;
     this.playedCues = new Set();
     this.endedCallback = null;
     for (const [kind, element] of Object.entries(this.media)) {
@@ -82,6 +84,18 @@ export class PlaybackEngine {
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.smoothingTimeConstant = 0.8;
+      // Effects share headroom without compressing music or video.
+      this.sfxBus = this.context.createDynamicsCompressor();
+      Object.entries({
+        threshold: -12,
+        knee: 8,
+        ratio: 6,
+        attack: 0.003,
+        release: 0.09,
+      }).forEach(([key, value]) => {
+        this.sfxBus[key].value = value;
+      });
+      this.sfxBus.connect(this.master);
       this.master.connect(this.analyser);
       this.analyser.connect(this.context.destination);
       for (const [kind, element] of Object.entries(this.media)) {
@@ -260,15 +274,18 @@ export class PlaybackEngine {
                   : name === "scanner"
                     ? "scanner"
                     : "sfx");
-    const serialKey = `${lane}Serial`;
     const voiceKey = `${lane}Voice`;
-    const serial = (this[serialKey] = (this[serialKey] || 0) + 1);
+    const generation = this.sfxGeneration;
     try {
       if (!this.buffers[name]) await this.decodeSfx(name);
-      if (!this.buffers[name] || serial !== this[serialKey] || !this.sfxEnabled)
+      if (
+        !this.buffers[name] ||
+        generation !== this.sfxGeneration ||
+        !this.sfxEnabled
+      )
         return;
-      // Intro and repeatable round accents retain their tails through rapid detents.
-      this.stopVoice(voiceKey);
+      // Concurrent first-use decodes still play one startup cue, but every UI trigger.
+      if (cue && !repeat && this.playedCues.has(name)) return;
       const source = this.context.createBufferSource();
       source.buffer = this.buffers[name];
       const gain = this.context.createGain();
@@ -295,15 +312,18 @@ export class PlaybackEngine {
       gain.gain.setValueAtTime(level, now + duration - release);
       gain.gain.linearRampToValueAtTime(0, now + duration);
       source.connect(gain);
-      gain.connect(this.master);
+      gain.connect(this.sfxBus);
+      const voice = { source, gain, voiceKey };
+      this.sfxVoices.add(voice);
       source.start();
       if (cue && !repeat) this.playedCues.add(name);
       source.onended = () => {
         source.disconnect();
         gain.disconnect();
-        if (this[voiceKey]?.source === source) this[voiceKey] = null;
+        this.sfxVoices.delete(voice);
+        if (this[voiceKey] === voice) this[voiceKey] = null;
       };
-      this[voiceKey] = { source, gain };
+      this[voiceKey] = voice;
     } catch {
       delete this.sfxDecodes[name];
       /* A missing interface effect must never block media playback. */
@@ -384,39 +404,25 @@ export class PlaybackEngine {
     );
   }
   stopSfx() {
-    this.sfxSerial = (this.sfxSerial || 0) + 1;
-    this.cueSerial = (this.cueSerial || 0) + 1;
-    this.accentSerial = (this.accentSerial || 0) + 1;
-    this.surpriseSerial = (this.surpriseSerial || 0) + 1;
-    this.stopVoice("sfxVoice");
-    this.stopVoice("cueVoice");
-    this.stopVoice("accentVoice");
-    this.stopVoice("surpriseVoice");
-    for (const lane of [
-      "click",
-      "event",
-      "scanner",
-      "water",
-      "logo",
-      "startup",
-    ]) {
-      this[`${lane}Serial`] = (this[`${lane}Serial`] || 0) + 1;
-      this.stopVoice(`${lane}Voice`);
+    // A generation invalidates pending decodes, even if sound is immediately re-enabled.
+    this.sfxGeneration += 1;
+    const now = this.context?.currentTime || 0;
+    for (const voice of this.sfxVoices) {
+      const { source, gain, voiceKey } = voice;
+      if (gain.gain.cancelAndHoldAtTime) gain.gain.cancelAndHoldAtTime(now);
+      else {
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(gain.gain.value, now);
+      }
+      gain.gain.linearRampToValueAtTime(0, now + 0.005);
+      try {
+        source.stop(now + 0.006);
+      } catch {
+        /* Already ended. */
+      }
+      if (this[voiceKey] === voice) this[voiceKey] = null;
     }
+    this.sfxVoices.clear();
     this.scrubber?.stop();
-  }
-  stopVoice(voiceKey) {
-    if (!this[voiceKey]) return;
-    const { source, gain } = this[voiceKey];
-    const now = this.context.currentTime;
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.005);
-    try {
-      source.stop(now + 0.006);
-    } catch {
-      /* Already ended. */
-    }
-    this[voiceKey] = null;
   }
 }

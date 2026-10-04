@@ -757,6 +757,17 @@
         </footer>
       </main>
       <section class="transport collapsed" aria-label="音乐播放器">
+        <p id="listen-caption" class="listen-caption">
+          LISTENING ROOM / SONIC ARCHIVE
+        </p>
+        <button
+          id="listen-toggle"
+          class="listen-toggle"
+          aria-label="专注聆听"
+          aria-pressed="false"
+        >
+          <span data-icon="arrows-out-simple"></span><span>聆听模式</span>
+        </button>
         <button
           id="dock-toggle"
           class="icon-button dock-toggle"
@@ -773,14 +784,16 @@
           <span>PLAYBACK.MODULE</span><span>STEREO / MASTER BUS</span>
         </div>
         <div class="now-playing">
-          <div class="disc" id="disc" aria-hidden="true">
-            <img src="./art/dirty-octopus-logo.jpg" alt="" />
-            <div class="cartridge-bars"><i></i><i></i><i></i></div>
-          </div>
-          <div class="track-meta">
-            <p class="micro" id="play-state">READY / 待播放</p>
-            <h2 id="current-title"></h2>
-            <p id="current-detail"></p>
+          <div class="cartridge-content">
+            <div class="disc" id="disc" aria-hidden="true">
+              <img src="./art/dirty-octopus-logo.jpg" alt="" />
+              <div class="cartridge-bars"><i></i><i></i><i></i></div>
+            </div>
+            <div class="track-meta">
+              <p class="micro" id="play-state">READY / 待播放</p>
+              <h2 id="current-title"></h2>
+              <p id="current-detail"></p>
+            </div>
           </div>
         </div>
         <div class="wave-deck">

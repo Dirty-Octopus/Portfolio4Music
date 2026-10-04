@@ -11,6 +11,12 @@ import "./contact.css";
 import { AudioAssets } from "./loading.js";
 import "./portal-contour.css";
 import "./portal.css";
+import "./motion.css";
+import "./listening.css";
+import { EASE, MOTION } from "./motion.js";
+import { initWaveform } from "./waveform.js";
+import { initCartridge } from "./cartridge.js";
+import { initListening } from "./listening.js";
 import { initPortal } from "./portal.js";
 import { initPortalContour } from "./portal-contour.js";
 import { initMetalLogos } from "./metal-logo.js";
@@ -202,12 +208,15 @@ function renderTracks() {
   updatePlayback();
 }
 function setCurrent(track) {
-  current = track;
-  $("#current-title").textContent = trackTitle(track);
-  $("#current-title").title = track.filename;
-  $("#current-detail").textContent =
-    `${labelFor(track.category)} / ${track.format} / ${(Number(track.sampleRate) / 1000).toFixed(1)} kHz`;
+  cartridge.swap(() => {
+    current = track;
+    $("#current-title").textContent = trackTitle(track);
+    $("#current-title").title = track.filename;
+    $("#current-detail").textContent =
+      `${labelFor(track.category)} / ${track.format} / ${(Number(track.sampleRate) / 1000).toFixed(1)} kHz`;
+  });
   $("#audio-duration").textContent = formatTime(track.duration);
+  $("#audio-time").textContent = "00:00";
   $("#audio-seek").value = 0;
   updatePlayback();
   drawWaveform();
@@ -387,7 +396,11 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     engine.toggle(engine.active === "video" ? "video" : "audio");
   }
-  if (event.key === "/" && !input) {
+  if (
+    event.key === "/" &&
+    !input &&
+    !document.body.classList.contains("listening-mode")
+  ) {
     event.preventDefault();
     if ($(".shell").dataset.view !== "audio" || $(".workspace").inert) {
       const focusSearch = (event) => {
@@ -540,7 +553,7 @@ $("#dock-toggle").addEventListener("click", () => {
         },
         { transform: "none" },
       ],
-      { duration: 460, easing: "cubic-bezier(.2,.75,.2,1)" },
+      { duration: MOTION.reveal, easing: EASE.glide },
     );
 });
 $("#video-play").addEventListener("click", () => engine.toggle("video"));
@@ -687,49 +700,19 @@ $(".brand").addEventListener("click", (event) => {
   changeView("overview");
   window.scrollTo({ top: 0, behavior: reduced.matches ? "instant" : "smooth" });
 });
-const wave = $("#waveform");
-const waveContext = wave.getContext("2d");
-let waveWidth = 0,
-  waveHeight = 0;
-function sizeWave() {
-  const rect = wave.getBoundingClientRect(),
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-  waveWidth = rect.width;
-  waveHeight = rect.height;
-  wave.width = Math.round(rect.width * dpr);
-  wave.height = Math.round(rect.height * dpr);
-  waveContext.setTransform(dpr, 0, 0, dpr, 0, 0);
-  drawWaveform();
-}
+const cartridge = initCartridge(motionAllowed);
+const instrument = initWaveform($("#waveform"), () => current, audio);
 function drawWaveform(position) {
-  if (!waveContext || !current || !waveWidth) return;
-  const fraction =
-    position ?? (audio.duration ? audio.currentTime / audio.duration : 0);
-  waveContext.clearRect(0, 0, waveWidth, waveHeight);
-  const count = Math.min(current.peaks.length, Math.floor(waveWidth / 3));
-  const gap = waveWidth / count;
-  for (let i = 0; i < count; i++) {
-    const value = current.peaks[Math.floor((i / count) * current.peaks.length)];
-    const height = Math.max(2, value * (waveHeight - 5));
-    waveContext.fillStyle = i / count <= fraction ? "#b7e4f9" : "#65879e";
-    waveContext.fillRect(
-      i * gap,
-      (waveHeight - height) / 2,
-      Math.max(1, gap - 1),
-      height,
-    );
-  }
-  waveContext.fillStyle = "#e5f4fa";
-  waveContext.fillRect(
-    clamp(fraction * waveWidth, 0, waveWidth - 1),
-    0,
-    1,
-    waveHeight,
-  );
+  instrument.draw(position);
 }
+const listening = initListening({
+  motionAllowed,
+  syncDockLabel,
+  engine,
+  settleCartridge: cartridge.settle,
+});
 setCurrent(current);
 renderTracks();
-new ResizeObserver(sizeWave).observe(wave);
 const spectrum = $("#spectrum"),
   spectrumContext = spectrum.getContext("2d");
 const bins = new Uint8Array(128);

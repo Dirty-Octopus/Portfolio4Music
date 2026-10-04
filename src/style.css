@@ -1001,8 +1001,8 @@ nav {
   display: block;
   background: #101a22;
 }
-.video-stage:not(.has-started) video {
-  filter: url(#duotone);
+.video-stage video {
+  filter: none;
 }
 .video-overlay {
   position: absolute;
@@ -1012,7 +1012,7 @@ nav {
   justify-content: center;
   flex-direction: column;
   gap: 9px;
-  background: #152c3640;
+  background: #00000028;
   color: #e1eff8;
 }
 .video-overlay > span:first-child {
@@ -1031,7 +1031,7 @@ nav {
   padding: 4px 7px;
 }
 .video-overlay:hover {
-  background: #0b223b05;
+  background: #00000008;
 }
 .video-overlay:hover > span:first-child {
   background: #ebf7fd;

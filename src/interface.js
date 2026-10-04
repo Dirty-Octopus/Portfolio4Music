@@ -1,6 +1,6 @@
-/** A shared cover/reveal timeline includes the banner, notice and content. */
+/** Panels retract, the frame resizes, then content seats along the same rails. */
+import { EASE, MOTION, finishAll } from "./motion.js";
 import { t, trackTitle } from "./i18n.js";
-import { scrambleText } from "./text-transition.js";
 import { initSettings } from "./settings.js";
 import { initParallax } from "./parallax.js";
 const $ = (s) => document.querySelector(s);
@@ -94,52 +94,81 @@ async function sweep() {
   options.engine.sfx("scanner");
   const ticket = ++generation;
   const surface = $(".module-surface");
-  const layers = $$(".module-wipe i");
-  const move = (from, to, duration, closing) =>
-    layers.map((layer, index) =>
-      layer.animate(
-        [
-          { transform: `translateX(${from}%) skewX(-12deg)` },
-          { transform: `translateX(${to}%) skewX(-12deg)` },
-        ],
-        {
-          duration,
-          delay: (closing ? index : 2 - index) * 65,
-          easing: closing
-            ? "cubic-bezier(.55,.04,.4,1)"
-            : "cubic-bezier(.18,.7,.18,1)",
-          fill: "both",
-        },
-      ),
+  const panels = () =>
+    [...surface.children].filter(
+      (el) =>
+        !el.classList.contains("module-wipe") &&
+        el.getBoundingClientRect().height > 0,
     );
-  transition = move(115, 0, 460, true);
-  await Promise.all(
-    transition.map((animation) => animation.finished.catch(() => {})),
+  const outgoing = panels();
+  transition = outgoing.map((el, i) =>
+    el.animate(
+      [
+        { clipPath: "inset(0 0 0 0)", transform: "translateY(0)", opacity: 1 },
+        {
+          clipPath: "inset(0 0 100% 0)",
+          transform: "translateY(-8px)",
+          opacity: 0.4,
+        },
+      ],
+      {
+        duration: MOTION.close,
+        delay: i * 18,
+        easing: EASE.close,
+        fill: "both",
+      },
+    ),
   );
+  await finishAll(transition);
   if (ticket !== generation) return;
   const from = surface.offsetHeight;
   if (pendingView) commitView(pendingView);
   pendingView = null;
   const to = surface.offsetHeight;
+  // Install every incoming first frame before releasing the outgoing masks.
+  const incoming = panels().map((el, i) =>
+    el.animate(
+      [
+        {
+          clipPath: "inset(0 100% 0 0)",
+          transform: "translateY(9px)",
+          opacity: 0.5,
+        },
+        { clipPath: "inset(0 0 0 0)", transform: "translateY(0)", opacity: 1 },
+      ],
+      {
+        duration: MOTION.reveal,
+        delay: 70 + i * MOTION.stagger,
+        easing: EASE.glide,
+        fill: "both",
+      },
+    ),
+  );
+  transition.forEach((a) => a.cancel());
+  transition = incoming;
   surface.style.height = `${to}px`;
   heightMotion = surface.animate(
     [{ height: `${from}px` }, { height: `${to}px` }],
     {
-      duration: 680,
-      easing: "cubic-bezier(.22,.7,.12,1)",
+      duration: MOTION.expand,
+      easing: EASE.machine,
       fill: "both",
     },
   );
-  transition.forEach((animation) => animation.cancel());
-  transition = move(0, -115, 640, false);
-  scrambleText(surface);
-  await Promise.all(
-    [...transition, heightMotion].map((animation) =>
-      animation.finished.catch(() => {}),
+  const rail = $(".module-wipe");
+  transition.push(
+    rail.animate(
+      [
+        { transform: "scaleX(0)", opacity: 0 },
+        { transform: "scaleX(1)", opacity: 1, offset: 0.6 },
+        { transform: "scaleX(1)", opacity: 0 },
+      ],
+      { duration: MOTION.expand, easing: EASE.glide, fill: "both" },
     ),
   );
+  await finishAll([...transition, heightMotion]);
   if (ticket !== generation) return;
-  transition.forEach((animation) => animation.cancel());
+  transition.forEach((a) => a.cancel());
   transition = null;
   heightMotion.cancel();
   heightMotion = null;
@@ -277,11 +306,6 @@ export function initInterface(config) {
   });
   document.addEventListener("trackchange", (event) => {
     inspectTrack(event.detail);
-    const transport = $(".transport");
-    transport.classList.remove("changing-track");
-    void transport.offsetWidth;
-    if (motionAllowed()) transport.classList.add("changing-track");
-    setTimeout(() => transport.classList.remove("changing-track"), 1100);
     logAction(`${t("文件", "FILE")} / ${trackTitle(event.detail)}`);
   });
   function updateState() {

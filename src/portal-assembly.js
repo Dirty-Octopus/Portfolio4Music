@@ -1,11 +1,13 @@
 import { crtViewportWidth, lensDisplayPoint } from "./crt.js";
 
+import { EASE } from "./motion.js";
+
 export const ASSEMBLY_DURATION = 2500;
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
 const phase = (time, start, end) => clamp01((time - start) / (end - start));
 const smooth = (p) => p * p * (3 - 2 * p);
-const glide = "cubic-bezier(.16,.82,.2,1)";
-const machine = "cubic-bezier(.7,0,.2,1)";
+const glide = EASE.glide;
+const machine = EASE.machine;
 
 // All motion samples one clock. No independent completion callbacks or DOM swaps.
 export function runAssembly({

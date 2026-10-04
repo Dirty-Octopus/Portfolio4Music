@@ -63,6 +63,7 @@ export async function initMetalLogos({
       !destroyed &&
       !lost &&
       !document.hidden &&
+      !document.body.classList.contains("listening-mode") &&
       !document.fullscreenElement &&
       !document.querySelector("#system-dialog")?.open &&
       rect.width > 0 &&
@@ -135,7 +136,7 @@ export async function initMetalLogos({
       wake();
       engine
         .unlock()
-        .then(() => engine.sfx("bootupcrt", { repeat: true, lane: "logo" }))
+        .then(() => engine.sfx("suprise", { lane: "logo" }))
         .catch(() => {});
     };
     host.addEventListener("click", onClick);

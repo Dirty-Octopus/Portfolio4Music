@@ -1,0 +1,127 @@
+:root {
+  --ease-glide: cubic-bezier(0.16, 0.82, 0.2, 1);
+  --ease-close: cubic-bezier(0.55, 0.05, 0.8, 0.4);
+  --ease-machine: cubic-bezier(0.7, 0, 0.2, 1);
+  --ease: var(--ease-glide);
+}
+/* Persistent frames and one leading rail replace the three full-surface wipes. */
+.module-wipe {
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.module-wipe i {
+  display: none;
+}
+.nav:is(:hover, .crt-hover, :focus-visible) b,
+:is(.sfx-toggle, .system-trigger):is(:hover, .crt-hover, :focus-visible) svg,
+.track:is(:hover, .crt-hover, :focus-visible) .track-index {
+  animation: none;
+}
+.nav.active::before,
+.track.playing::after {
+  animation: none;
+  opacity: 1;
+}
+.nav,
+.filter,
+.track,
+.icon-button,
+.play-button,
+.enter-button {
+  transition-timing-function: var(--ease-glide);
+}
+.filter > span,
+.track-text {
+  transition-duration: 240ms;
+  transition-timing-function: var(--ease-glide);
+}
+.nav::after {
+  transition-duration: 300ms;
+  transition-timing-function: var(--ease-glide);
+}
+.signal-fin,
+.signal-contour,
+.signal-bracket,
+.signal-fracture {
+  animation-duration: 28s;
+}
+.signal-scan {
+  animation-duration: 18s;
+}
+.transport.changing-track .output {
+  animation: none;
+}
+.now-playing {
+  position: relative;
+  overflow: hidden;
+}
+.cartridge-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.cartridge-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.now-playing::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+.cartridge-loading::after {
+  animation: cartridge-seat 645ms var(--ease-glide) both;
+}
+@keyframes cartridge-seat {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.4;
+  }
+  28% {
+    transform: scaleX(1);
+    opacity: 0.6;
+  }
+  85% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+/* Poster and moving image always preserve the source grade in every UI theme. */
+.video-stage video {
+  filter: none;
+}
+.video-overlay {
+  background: #00000028;
+}
+.video-overlay:hover {
+  background: #00000008;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cartridge-loading::after {
+    animation: none;
+  }
+}
+
+/* Keep the visible hairline, with a comfortable pointer/touch acquisition area. */
+.video-controls input[type="range"] {
+  height: 28px;
+  border-bottom: 0;
+  background: linear-gradient(var(--edge), var(--edge)) center / 100% 2px
+    no-repeat;
+}

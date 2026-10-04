@@ -14,13 +14,7 @@ def category(name):
     if any(x in name for x in ['游戏','音游']): return 'game'
     if any(x in name for x in ['凯尔特','阿拉伯']): return 'world'
     return 'contemporary'
-def waveform(p):
-    raw=ff('-i',p,'-map','0:a:0','-ac','1','-ar','4000','-f','f32le','-')
-    samples=array.array('f',raw)
-    step=max(1,len(samples)//192)
-    peaks=[max(map(abs,samples[i*step:min(len(samples),(i+1)*step)]),default=0) for i in range(192)]
-    top=max(peaks) or 1
-    return [round(x/top,3) for x in peaks]
+from waveforms import waveform
 tracks=[]
 audio_sources=ROOT/'audio-sources'
 sources=sorted([p for folder in ('music','sound-design') for p in (audio_sources/folder).iterdir() if p.is_file()])

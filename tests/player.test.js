@@ -70,6 +70,12 @@ class FakeContext {
   createGain() {
     return new FakeNode();
   }
+  createDynamicsCompressor() {
+    const node = new FakeNode();
+    for (const key of ["threshold", "knee", "ratio", "attack", "release"])
+      node[key] = new FakeParam(0);
+    return node;
+  }
   createAnalyser() {
     const node = new FakeNode();
     node.fftSize = 0;
@@ -357,7 +363,7 @@ test("volume and mute drive the master gain", async () => {
   assert.equal(engine.master.gain.value, 0.4);
 });
 
-test("sfx preloads, decodes once, and never stacks voices", async () => {
+test("sfx preloads and overlapping triggers retain every voice", async () => {
   const { engine, context } = makeEngine();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => ({
@@ -374,7 +380,7 @@ test("sfx preloads, decodes once, and never stacks voices", async () => {
   await engine.sfx("clickeffect");
   await engine.sfx("clickeffect");
   assert.equal(context.sources.length, 2);
-  assert.equal(context.sources[0].stopped, 1);
+  assert.equal(context.sources[0].stopped, 0);
   assert.equal(context.sources[1].stopped, 0);
   assert.equal(context.sources[1].started, 1);
 });
@@ -388,22 +394,23 @@ test("sfx is silent when disabled", async () => {
   assert.equal(context.sources.length, 0);
 });
 
-test("repeated logo boot sounds do not consume or interrupt the entry cue", async () => {
+test("repeated logo surprise sounds coexist with the startup cue", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
   engine.rawSfx = {
+    suprise: new ArrayBuffer(8),
     bootupcrt: new ArrayBuffer(8),
     flicker: new ArrayBuffer(8),
   };
-  await engine.sfx("bootupcrt", { repeat: true, lane: "logo" });
+  await engine.sfx("suprise", { lane: "logo" });
   const firstLogo = engine.logoVoice.source;
   assert.equal(engine.playedCues.has("bootupcrt"), false);
   await engine.sfx("flicker");
   const flicker = engine.cueVoice.source;
   await engine.sfx("bootupcrt", { lane: "startup" });
   const startup = engine.startupVoice.source;
-  await engine.sfx("bootupcrt", { repeat: true, lane: "logo" });
-  assert.equal(firstLogo.stopped, 1);
+  await engine.sfx("suprise", { lane: "logo" });
+  assert.equal(firstLogo.stopped, 0);
   assert.equal(startup.stopped, 0);
   assert.equal(flicker.stopped, 0);
   await engine.sfx("bootupcrt", { lane: "startup" });
@@ -414,7 +421,7 @@ test("repeated logo boot sounds do not consume or interrupt the entry cue", asyn
   assert.equal(context.sources[3].stopped, 1);
 });
 
-test("rapid water ripples replace the previous water voice without cutting UI cues", async () => {
+test("rapid water ripples overlap without cutting previous tails or UI cues", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
   engine.rawSfx = { water: new ArrayBuffer(8), flicker: new ArrayBuffer(8) };
@@ -423,7 +430,7 @@ test("rapid water ripples replace the previous water voice without cutting UI cu
   await engine.sfx("water");
   const water = engine.waterVoice.source;
   await engine.sfx("water");
-  assert.equal(water.stopped, 1);
+  assert.equal(water.stopped, 0);
   assert.equal(cue.stopped, 0);
   assert.equal(engine.waterVoice.source.stopped, 0);
   assert.equal(context.sources.length, 3);
@@ -434,7 +441,7 @@ test("rapid water ripples replace the previous water voice without cutting UI cu
 test("muting cancels pending water, logo and startup decodes even after re-enabling", async () => {
   for (const [name, options] of [
     ["water", {}],
-    ["bootupcrt", { repeat: true, lane: "logo" }],
+    ["suprise", { lane: "logo" }],
     ["bootupcrt", { lane: "startup" }],
   ]) {
     const { engine, context } = makeEngine();
@@ -668,7 +675,9 @@ test("rapid preselection retriggers every decoded request without a cooldown", a
   for (let i = 0; i < 8; i++) await engine.sfx("preselect");
   assert.equal(context.sources.length, 8);
   assert.equal(context.sources.at(-1).started, 1);
-  assert.equal(context.sources.filter((source) => source.stopped).length, 7);
+  assert.equal(context.sources.filter((source) => source.stopped).length, 0);
+  engine.stopSfx();
+  assert.equal(context.sources.filter((source) => source.stopped).length, 8);
 });
 
 async function makeScrubber(engine) {
@@ -809,4 +818,50 @@ test("surprise, round and detent sounds overlap independently and all obey SFX o
   assert.equal(context.sources.filter((source) => source.stopped).length, 0);
   engine.stopSfx();
   assert.equal(context.sources.filter((source) => source.stopped).length, 3);
+});
+
+test("concurrent triggers share one decode and keep every voice, releasing ended nodes", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = { water: new ArrayBuffer(8) };
+  let finish,
+    decodes = 0;
+  context.decodeAudioData = () => {
+    decodes++;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  };
+  const pending = Promise.all(
+    Array.from({ length: 6 }, () => engine.sfx("water")),
+  );
+  finish({ duration: 0.7 });
+  await pending;
+  assert.equal(decodes, 1);
+  assert.equal(engine.sfxVoices.size, 6);
+  assert.ok(
+    context.sources.every(
+      (source) => source.started === 1 && source.stopped === 0,
+    ),
+  );
+  const latest = engine.waterVoice;
+  context.sources[0].onended();
+  assert.equal(engine.sfxVoices.size, 5);
+  assert.equal(engine.waterVoice, latest);
+  assert.equal(latest.gain.connections[0], engine.sfxBus);
+  assert.equal(engine.gains.audio.connections[0], engine.master);
+  engine.stopSfx();
+  engine.stopSfx();
+  assert.equal(engine.sfxVoices.size, 0);
+  assert.ok(context.sources.slice(1).every((source) => source.stopped === 1));
+  latest.source.onended();
+  assert.equal(engine.waterVoice, null);
+});
+
+test("concurrent startup requests decode and start only once", async () => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.rawSfx = { bootupcrt: new ArrayBuffer(8) };
+  await Promise.all([engine.sfx("bootupcrt"), engine.sfx("bootupcrt")]);
+  assert.equal(context.sources.length, 1);
 });
