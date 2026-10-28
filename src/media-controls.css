@@ -1,0 +1,52 @@
+.video-playlist {
+  display: grid;
+  gap: 6px;
+  margin: 0 12px 12px;
+}
+.video-playlist button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  background: var(--panel-low);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  transition: none;
+}
+.video-playlist button small {
+  flex: none;
+  font: 10px var(--mono);
+}
+.video-playlist button[aria-pressed="true"],
+.video-playlist button:is(:focus-visible, .crt-hover) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.playground-game {
+  margin-top: 24px;
+  padding-top: 18px;
+  padding-bottom: 24px;
+  border-top: 1px solid var(--edge);
+}
+.playground-game-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 100%;
+  padding: 12px 18px;
+  border: 1px solid var(--edge);
+  background: var(--panel-high);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.playground-game-link:is(:focus-visible, .crt-hover) {
+  background: var(--accent);
+  color: var(--accent-ink);
+}

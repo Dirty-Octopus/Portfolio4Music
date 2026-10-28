@@ -253,13 +253,18 @@ export class PlaybackEngine {
       }),
     );
   }
-  async sfx(name, { repeat = false, lane: channel } = {}) {
+  water() {
+    const name = Math.random() < 0.5 ? "website_Water1" : "website_Water2";
+    const detune = Math.random() * 20 - 10;
+    return this.sfx(name, { lane: "water", detune });
+  }
+  async sfx(name, { repeat = false, lane: channel, detune = 0 } = {}) {
     if (!this.sfxEnabled || !this.context) return;
-    const cue = name === "bootupcrt" || name === "flicker";
+    const cue = name === "website_bootup" || name === "flicker";
     if (cue && !repeat && this.playedCues.has(name)) return;
     const lane =
       channel ||
-      (name === "water"
+      (["website_Water1", "website_Water2"].includes(name)
         ? "water"
         : cue
           ? "cue"
@@ -290,11 +295,13 @@ export class PlaybackEngine {
       source.buffer = this.buffers[name];
       const gain = this.context.createGain();
       const now = this.context.currentTime;
-      const duration = source.buffer.duration;
+      const cents = clamp(detune, -10, 10);
+      source.detune.value = cents;
+      const duration = source.buffer.duration / 2 ** (cents / 1200);
       const level =
         {
           notification: 0.28,
-          bootupcrt: 0.32,
+          website_bootup: 0.32,
           flicker: 0.16,
           clack: 0.16,
           lowerclack: 0.15,
@@ -303,7 +310,8 @@ export class PlaybackEngine {
           scanner: 0.2,
           round: 0.24,
           suprise: 0.24,
-          water: 0.5,
+          website_Water1: 0.5,
+          website_Water2: 0.5,
         }[name] ?? 0.19;
       const attack = Math.min(0.003, duration * 0.1);
       const release = Math.min(0.015, duration * 0.25);

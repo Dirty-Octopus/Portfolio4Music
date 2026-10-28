@@ -195,7 +195,7 @@ export function initPortalContour({ motionAllowed = () => true, engine } = {}) {
     if (x < 0 || x > 1 || y < 0 || y > 1) return;
     engine
       ?.unlock()
-      .then(() => engine.sfx("water"))
+      .then(() => engine.water())
       .catch(() => {});
     if (!canAnimate()) return;
     ripples.push({ x, y, time: terrainTime });

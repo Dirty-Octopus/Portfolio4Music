@@ -13,6 +13,8 @@ import "./portal-contour.css";
 import "./portal.css";
 import "./motion.css";
 import "./listening.css";
+import "./media-controls.css";
+import { initVideoPlaylist } from "./video-playlist.js";
 import { EASE, MOTION } from "./motion.js";
 import { initWaveform } from "./waveform.js";
 import { initCartridge } from "./cartridge.js";
@@ -139,33 +141,13 @@ const engine = new PlaybackEngine({
   },
 });
 audioAssets = new AudioAssets(engine, (path) => `${base}${path}`);
-const soundPaths = Object.fromEntries(
-  [
-    "pad",
-    "bootupcrt",
-    "flicker",
-    "preselect",
-    "clack",
-    "lowerclack",
-    "clickeffect",
-    "clickevent",
-    "suprise",
-    "neuraasliderto",
-    "neuraasliderfrom",
-    "round",
-    "scanner",
-    "notification",
-    "water",
-  ].map((name) => [name, `media/${name}.wav`]),
-);
+const soundPaths = manifest.sfx;
 let assetsReady,
   portal,
   logosReady,
   logoController,
   opening = false;
-video.src = asset(manifest.videos[0].src);
-video.poster = asset(manifest.videos[0].poster);
-$("#video-duration").textContent = formatTime(manifest.videos[0].duration);
+initVideoPlaylist({ videos: manifest.videos, engine, asset, translate: t });
 $("#year").textContent = new Date().getFullYear();
 function renderFilters() {
   $("#filters").innerHTML = categories
@@ -359,7 +341,7 @@ async function enterExperience(language) {
 async function finishEntry() {
   if (opening) return;
   opening = true;
-  engine.sfx("bootupcrt", { lane: "startup" });
+  engine.sfx("website_bootup", { lane: "startup" });
   await engine.setBgmEnabled(engine.bgmEnabled);
   $("#boot-status").textContent = t(
     "连接完成 / 声音已就绪",

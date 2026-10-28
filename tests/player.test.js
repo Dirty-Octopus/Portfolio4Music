@@ -48,6 +48,7 @@ class FakeBufferSource extends FakeNode {
     this.stopped = 0;
     this.onended = null;
     this.playbackRate = new FakeParam(1);
+    this.detune = new FakeParam(0);
   }
   start(...args) {
     this.started += 1;
@@ -399,21 +400,21 @@ test("repeated logo surprise sounds coexist with the startup cue", async () => {
   await engine.unlock();
   engine.rawSfx = {
     suprise: new ArrayBuffer(8),
-    bootupcrt: new ArrayBuffer(8),
+    website_bootup: new ArrayBuffer(8),
     flicker: new ArrayBuffer(8),
   };
   await engine.sfx("suprise", { lane: "logo" });
   const firstLogo = engine.logoVoice.source;
-  assert.equal(engine.playedCues.has("bootupcrt"), false);
+  assert.equal(engine.playedCues.has("website_bootup"), false);
   await engine.sfx("flicker");
   const flicker = engine.cueVoice.source;
-  await engine.sfx("bootupcrt", { lane: "startup" });
+  await engine.sfx("website_bootup", { lane: "startup" });
   const startup = engine.startupVoice.source;
   await engine.sfx("suprise", { lane: "logo" });
   assert.equal(firstLogo.stopped, 0);
   assert.equal(startup.stopped, 0);
   assert.equal(flicker.stopped, 0);
-  await engine.sfx("bootupcrt", { lane: "startup" });
+  await engine.sfx("website_bootup", { lane: "startup" });
   assert.equal(context.sources.length, 4);
   engine.stopSfx();
   assert.equal(startup.stopped, 1);
@@ -424,12 +425,15 @@ test("repeated logo surprise sounds coexist with the startup cue", async () => {
 test("rapid water ripples overlap without cutting previous tails or UI cues", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
-  engine.rawSfx = { water: new ArrayBuffer(8), flicker: new ArrayBuffer(8) };
+  engine.rawSfx = {
+    website_Water1: new ArrayBuffer(8),
+    flicker: new ArrayBuffer(8),
+  };
   await engine.sfx("flicker");
   const cue = engine.cueVoice.source;
-  await engine.sfx("water");
+  await engine.sfx("website_Water1");
   const water = engine.waterVoice.source;
-  await engine.sfx("water");
+  await engine.sfx("website_Water1");
   assert.equal(water.stopped, 0);
   assert.equal(cue.stopped, 0);
   assert.equal(engine.waterVoice.source.stopped, 0);
@@ -438,11 +442,46 @@ test("rapid water ripples overlap without cutting previous tails or UI cues", as
   assert.equal(context.sources[2].stopped, 1);
 });
 
+test("water clicks choose either recording independently with a fresh detune and preserve their tails", async (t) => {
+  const { engine, context } = makeEngine();
+  await engine.unlock();
+  engine.buffers.website_Water1 = { duration: 0.61102 };
+  engine.buffers.website_Water2 = { duration: 0.59424 };
+  const values = [0, 0, 0.49, 0.25, 0.5, 0.75, 0.99, 1];
+  t.mock.method(Math, "random", () => values.shift());
+  for (let i = 0; i < 4; i++) await engine.water();
+  assert.deepEqual(
+    context.sources.map((source) => source.buffer),
+    [
+      engine.buffers.website_Water1,
+      engine.buffers.website_Water1,
+      engine.buffers.website_Water2,
+      engine.buffers.website_Water2,
+    ],
+  );
+  assert.deepEqual(
+    context.sources.map((source) => source.detune.value),
+    [-10, -5, 5, 10],
+  );
+  assert.ok(context.sources.every((source) => source.stopped === 0));
+  for (const voice of engine.sfxVoices) {
+    const duration =
+      voice.source.buffer.duration / 2 ** (voice.source.detune.value / 1200);
+    assert.equal(voice.gain.gain.ramps.at(-1).time, duration);
+    assert.equal(voice.gain.gain.ramps.at(-1).value, 0);
+  }
+  engine.sfxEnabled = false;
+  engine.stopSfx();
+  assert.ok(context.sources.every((source) => source.stopped === 1));
+  await engine.water();
+  assert.equal(context.sources.length, 4);
+});
+
 test("muting cancels pending water, logo and startup decodes even after re-enabling", async () => {
   for (const [name, options] of [
-    ["water", {}],
+    ["website_Water1", {}],
     ["suprise", { lane: "logo" }],
-    ["bootupcrt", { lane: "startup" }],
+    ["website_bootup", { lane: "startup" }],
   ]) {
     const { engine, context } = makeEngine();
     await engine.unlock();
@@ -466,12 +505,12 @@ test("intro cues play once and retain their tail through hover and click sounds"
   const { engine, context } = makeEngine();
   await engine.unlock();
   engine.rawSfx = Object.fromEntries(
-    ["bootupcrt", "flicker", "preselect", "clickeffect"].map((name) => [
+    ["website_bootup", "flicker", "preselect", "clickeffect"].map((name) => [
       name,
       new ArrayBuffer(8),
     ]),
   );
-  await engine.sfx("bootupcrt");
+  await engine.sfx("website_bootup");
   const boot = engine.cueVoice.source;
   boot.onended();
   await engine.sfx("flicker");
@@ -483,7 +522,7 @@ test("intro cues play once and retain their tail through hover and click sounds"
   assert.equal(flicker.stopped, 0);
   assert.equal(flicker.loop, undefined);
   await engine.sfx("flicker");
-  await engine.sfx("bootupcrt");
+  await engine.sfx("website_bootup");
   assert.equal(context.sources.length, 4);
   flicker.onended();
   assert.equal(engine.cueVoice, null);
@@ -541,12 +580,12 @@ test("concurrent preload groups preserve both early cues and ambient buffers", a
   });
   try {
     const background = engine.preloadSfx({ pad: "pad" });
-    await engine.preloadSfx({ bootupcrt: "boot" });
-    assert.ok(engine.rawSfx.bootupcrt);
+    await engine.preloadSfx({ website_bootup: "boot" });
+    assert.ok(engine.rawSfx.website_bootup);
     assert.equal(engine.rawSfx.pad, undefined);
     finishPad(new ArrayBuffer(16));
     await background;
-    assert.equal(engine.rawSfx.bootupcrt.byteLength, 8);
+    assert.equal(engine.rawSfx.website_bootup.byteLength, 8);
     assert.equal(engine.rawSfx.pad.byteLength, 16);
   } finally {
     globalThis.fetch = originalFetch;
@@ -823,7 +862,7 @@ test("surprise, round and detent sounds overlap independently and all obey SFX o
 test("concurrent triggers share one decode and keep every voice, releasing ended nodes", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
-  engine.rawSfx = { water: new ArrayBuffer(8) };
+  engine.rawSfx = { website_Water1: new ArrayBuffer(8) };
   let finish,
     decodes = 0;
   context.decodeAudioData = () => {
@@ -833,7 +872,7 @@ test("concurrent triggers share one decode and keep every voice, releasing ended
     });
   };
   const pending = Promise.all(
-    Array.from({ length: 6 }, () => engine.sfx("water")),
+    Array.from({ length: 6 }, () => engine.sfx("website_Water1")),
   );
   finish({ duration: 0.7 });
   await pending;
@@ -861,7 +900,10 @@ test("concurrent triggers share one decode and keep every voice, releasing ended
 test("concurrent startup requests decode and start only once", async () => {
   const { engine, context } = makeEngine();
   await engine.unlock();
-  engine.rawSfx = { bootupcrt: new ArrayBuffer(8) };
-  await Promise.all([engine.sfx("bootupcrt"), engine.sfx("bootupcrt")]);
+  engine.rawSfx = { website_bootup: new ArrayBuffer(8) };
+  await Promise.all([
+    engine.sfx("website_bootup"),
+    engine.sfx("website_bootup"),
+  ]);
   assert.equal(context.sources.length, 1);
 });
