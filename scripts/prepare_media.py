@@ -28,16 +28,30 @@ SITE_TITLES = {
     'website_Water1': '涟漪水滴音效 1', 'website_Water2': '涟漪水滴音效 2',
 }
 VIDEO_SPECS = (
+    dict(id='magic', filename='magic-sound-design-2026-10-28.mov',
+         title='Magic / 音效设计', titleEn='Magic / Sound Design',
+         poster='art/magic-poster.jpg', posterTime=1,
+         sourceTitle='Mage VS Psychic', sourceAuthor='Grimazure',
+         sourceUrl='https://www.youtube.com/watch?v=dTSXf0SZ6_g'),
     dict(id='arcane', filename='ArcaneSoundDesignTest.mp4',
          title='Arcane / 音效设计', titleEn='Arcane / Sound Design',
-         poster='art/arcane-poster.jpg'),
+         poster='art/arcane-poster.jpg',
+         sourceTitle='Arcane · Season 1, Episode 2',
+         sourceTitleZh='《Arcane》第一季第二集',
+         sourceNote='Netflix 剧集 · YouTube 公开片段',
+         sourceNoteEn='Netflix series · Publicly available clip on YouTube'),
     dict(id='cyberpunk', filename='CyberpunkTest20261014.mp4',
          title='Cyberpunk / 音效设计', titleEn='Cyberpunk / Sound Design',
-         poster='art/cyberpunk-poster.jpg'),
+         poster='art/cyberpunk-poster.jpg',
+         sourceTitle='What does it feel like to be a Samurai in Cyberpunk 2077',
+         sourceAuthor='SamClaymor',
+         sourceUrl='https://www.youtube.com/watch?v=O1tIQIp2vf0'),
     dict(id='showreel', filename='影视预告片配乐:音效设计练习.mp4',
          title='影视预告片配乐:音效设计练习',
          titleEn='Film Trailer / Scoring & Sound Design',
-         poster='art/video-poster.jpg'),
+         poster='art/video-poster.jpg',
+         sourceTitle='TRON: Ares', sourceTitleZh='《TRON: Ares / 创：战神》',
+         sourceNote='电影预告片', sourceNoteEn='Film trailer'),
 )
 
 
@@ -127,12 +141,15 @@ def prepare_video(spec, existing, only):
     if not poster_path.exists():
         if not selected:
             raise ValueError(f'{poster_path.name} is missing; include {ident} in --only')
-        ff('-ss', min(18, duration / 2), '-i', dest, '-frames:v', '1',
+        ff('-ss', spec.get('posterTime', min(18, duration / 2)), '-i', dest, '-frames:v', '1',
            '-vf', 'scale=1280:-2', '-q:v', '2', poster_path)
     record = dict(previous)
     record.update(id=ident, title=previous.get('title', spec['title']) if ident == 'showreel' else spec['title'],
                   titleEn=spec['titleEn'], filename=filename, src=src, poster=poster,
                   duration=duration, width=video['width'], height=video['height'])
+    for key in ('sourceTitle', 'sourceTitleZh', 'sourceAuthor', 'sourceUrl', 'sourceNote', 'sourceNoteEn'):
+        if key in spec:
+            record[key] = spec[key]
     return record
 
 

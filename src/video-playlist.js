@@ -5,7 +5,10 @@ export function initVideoPlaylist({ videos, engine, asset, translate: t }) {
   const list = document.querySelector("#video-playlist");
   const heading = document.querySelector(".video-caption h3");
   const badge = document.querySelector(".video-badge");
-  let current = videos.find((item) => item.id === "arcane") || videos[0];
+  const sourceLink = document.querySelector("#video-source-link");
+  const sourceTitle = document.querySelector("#video-source-title");
+  const sourceAuthor = document.querySelector("#video-source-author");
+  let current = videos.find((item) => item.id === "magic") || videos[0];
   if (!current) return;
 
   const title = (item) => t(item.title, item.titleEn || item.title);
@@ -33,6 +36,20 @@ export function initVideoPlaylist({ videos, engine, asset, translate: t }) {
 
   function render() {
     heading.textContent = title(current);
+    const creditTitle = current.sourceTitle
+      ? t(current.sourceTitleZh || current.sourceTitle, current.sourceTitle)
+      : title(current);
+    sourceLink.textContent = creditTitle;
+    sourceLink.href = current.sourceUrl || "";
+    sourceLink.hidden = !current.sourceUrl;
+    sourceTitle.textContent = creditTitle;
+    sourceTitle.hidden = Boolean(current.sourceUrl);
+    sourceAuthor.textContent = current.sourceAuthor
+      ? `${t("发布者", "Published by")} · ${current.sourceAuthor}`
+      : t(
+          current.sourceNote || "",
+          current.sourceNoteEn || current.sourceNote || "",
+        );
     video.setAttribute("aria-label", title(current));
     badge.textContent = `${current.width} × ${current.height} / ${t("影像", "FILM")}`;
     document.querySelector("#video-duration").textContent = formatTime(

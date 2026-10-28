@@ -1,3 +1,45 @@
+.video-rights {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--accent);
+  background: var(--panel-high);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.video-rights strong {
+  font-size: 13px;
+}
+.video-rights p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.video-rights a,
+.video-source a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.video-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 12px 14px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.video-source > span:first-child {
+  font-weight: 600;
+}
+.video-source > span:last-child {
+  flex-basis: 100%;
+}
 .video-playlist {
   display: grid;
   gap: 6px;

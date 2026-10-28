@@ -20,7 +20,7 @@ Pushing to `main` runs `.github/workflows/deploy.yml`: tests, Vite build, GitHub
 
 - 15 music works, with searchable categories and precomputed real waveforms.
 - 2 sound-design studies, 4 project sound cues, and 16 site audio assets (ambient music and interface effects), organized across the sound-design and interface-SFX categories.
-- A three-video 1080p H.264/AAC playlist: Arcane (selected by default), Cyberpunk, and the original film trailer study, with a draggable timeline and fullscreen.
+- A four-video 1080p H.264/AAC playlist: Magic (selected by default), Arcane, Cyberpunk, and the original film trailer study, with a draggable timeline and fullscreen. Each study displays its original footage credit, alongside a bilingual noncommercial portfolio notice and a copyright-removal contact.
 - All media and artwork are served locally from `public/`, including the ambient pad, interface and toy sounds, CRT startup, and one-shot flicker.
 - Original music, sound-design, and site-effect sources are organized in `audio-sources/music/`, `audio-sources/sound-design/`, and `audio-sources/site-sfx/`. The `audio-sources/` directory is ignored by Git; prepared playback assets are tracked under `public/media/`. `npm run media` regenerates those assets and `src/media.json` from local originals when FFmpeg is available.
 

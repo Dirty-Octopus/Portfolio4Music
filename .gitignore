@@ -3,10 +3,12 @@ dist/
 .DS_Store
 .reference/
 .qa/
+/scripts/__pycache__/
 *.log
 # Original media remain local; only prepared site assets are tracked.
 /audio-sources/
 /*.mp3
 /*.wav
 /*.mp4
+/*.mov
 /SFX/

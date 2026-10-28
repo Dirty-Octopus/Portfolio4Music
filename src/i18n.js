@@ -60,6 +60,15 @@ const content = {
   ],
   works: ["音乐作品", "AUDIO WORKS"],
   film: ["影像作品", "SHOWREEL"],
+  videoRemoval: [
+    "如有侵权，请联系删除",
+    "For copyright concerns, please contact me for removal.",
+  ],
+  videoRights: [
+    "影像素材取自公开平台上可获取的第三方分发内容，版权归原作者及相关权利人所有。本页仅用于个人配乐与声音设计作品展示，不作商业用途。",
+    "Footage is sourced from third-party content available on public platforms. All rights belong to the original creators and respective rights holders. These scoring and sound design studies are presented solely as a personal portfolio, with no commercial use.",
+  ],
+  videoSource: ["原作影像", "ORIGINAL FOOTAGE"],
   bgm: ["背景音乐", "BACKGROUND MUSIC"],
   softness: ["屏幕柔化", "SCREEN DIFFUSION"],
   language: ["语言", "LANGUAGE"],
