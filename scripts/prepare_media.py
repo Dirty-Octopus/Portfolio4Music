@@ -28,7 +28,7 @@ SITE_TITLES = {
     'website_Water1': '涟漪水滴音效 1', 'website_Water2': '涟漪水滴音效 2',
 }
 VIDEO_SPECS = (
-    dict(id='magic', filename='magic-sound-design-2026-10-28.mov',
+    dict(id='magic', filename='magic-sound-design-2026-10-29.mp4', assetVersion='20261029',
          title='Magic / 音效设计', titleEn='Magic / Sound Design',
          poster='art/magic-poster.jpg', posterTime=1,
          sourceTitle='Mage VS Psychic', sourceAuthor='Grimazure',
@@ -147,6 +147,9 @@ def prepare_video(spec, existing, only):
     record.update(id=ident, title=previous.get('title', spec['title']) if ident == 'showreel' else spec['title'],
                   titleEn=spec['titleEn'], filename=filename, src=src, poster=poster,
                   duration=duration, width=video['width'], height=video['height'])
+    if spec.get('assetVersion'):
+        record['src'] = f"{src}?v={spec['assetVersion']}"
+        record['poster'] = f"{poster}?v={spec['assetVersion']}"
     for key in ('sourceTitle', 'sourceTitleZh', 'sourceAuthor', 'sourceUrl', 'sourceNote', 'sourceNoteEn'):
         if key in spec:
             record[key] = spec[key]
